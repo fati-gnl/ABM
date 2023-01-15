@@ -45,4 +45,3 @@ class Cop(RandomWalker):
         Input:
         Output:
         '''
-        self.random_move()

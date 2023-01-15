@@ -45,11 +45,16 @@ class CopCitizen(Model):
             self.grid.place_agent(citizen, (x, y))
             self.schedule_Citizen.add(citizen)
 
-        # Create cops
-        # Todo: Cops should not be placed where another cop is
+        # Create cops: No two cops should be placed on the same cell
+        # Todo: No two cops should be next to each other
+        current_coord = []
         for i in range(self.initial_cops):
             x = random.randrange(self.grid.width)
             y = random.randrange(self.grid.height)
+            while (x, y) in current_coord:
+                x = random.randrange(self.grid.width)
+                y = random.randrange(self.grid.height)
+            current_coord.append((x, y))
             cop = Cop(self.next_id(), self, (x,y))
             self.grid.place_agent(cop, (x, y))
             self.schedule_Cop.add(cop)
