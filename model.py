@@ -16,7 +16,7 @@ class CopCitizen(Model):
     Corruption Model: Citizens and Cops
     '''
 
-    def __init__(self, initial_citizens=100, initial_cops=0, strategies=[axl.Cooperator, axl.Defector]):
+    def __init__(self, initial_citizens=100, initial_cops=10):
 
         super().__init__()
 
@@ -32,7 +32,10 @@ class CopCitizen(Model):
         # Todo: We should collect other data - I guess total money
         self.datacollector = DataCollector(
             {"Citizens": lambda m: self.schedule_Citizen.get_agent_count(),
-             "Cops": lambda m: self.schedule_Cop.get_agent_count()})
+             "Cops": lambda m: self.schedule_Cop.get_agent_count(),
+             "Bribing": lambda m: sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
+             "NotBribing": lambda m:self.schedule_Cop.get_agent_count()- sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
+             })
 
         # Create citizens
         for i in range(self.initial_citizens):
@@ -69,7 +72,8 @@ class CopCitizen(Model):
         # self.schedule_Cop.step()
 
 
-        print(self.schedule_Citizen.get_agent_count())
+        # print(self.schedule_Citizen.get_agent_count())
+        print(sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]))
         # Save the statistics
         self.datacollector.collect(self)
 
@@ -82,6 +86,6 @@ class CopCitizen(Model):
 
     def get_cop(self):
         if len(self.available_cops) > 0:
-            return random.sample(self.available_cops,1)
+            return random.sample(self.available_cops,1)[0]
         return None
 

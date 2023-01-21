@@ -67,8 +67,11 @@ class Citizen(Agent):
             cop.payoffs[cop.action] += cop.moral_commitment
 
     def do_action(self):
+        all_payoff = sum(list(self.payoffs.values()))
+        all_payoff = 1 if all_payoff == 0 else all_payoff
+        normalized_payoffs = [x / all_payoff for x in list(self.payoffs.values())]
         # categorical distribution over payoffs
-        self.action = numpy.random.multinomial(1, self.payoffs.values())
+        self.action = Citizen_actions[ numpy.argmax(numpy.random.multinomial(1, normalized_payoffs))]
 
 class Cop(Agent):
     def __init__(self, unique_id, model):
@@ -78,9 +81,13 @@ class Cop(Agent):
         self.moral_commitment = random.random()
         self.action = None
         self.bribe = 0.5
+        self.accumulated_payoff= 0
 
     def do_action(self):
         # categorical distribution over payoffs
-        self.action = numpy.random.multinomial(1, self.payoffs.values())
+        all_payoff = sum(list(self.payoffs.values()))
+        all_payoff =1 if all_payoff==0 else all_payoff
+        normalized_payoffs = [x / all_payoff for x in list(self.payoffs.values())]
+        self.action =Cop_actions[numpy.argmax(numpy.random.multinomial(1,normalized_payoffs))]
         # should be also drawn randomly
         self.bribe = 0.5

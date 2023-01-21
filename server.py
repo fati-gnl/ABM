@@ -15,11 +15,16 @@ def agent_portrayal(agent):
     return portrayal
 
 # Create a dynamic linegraph
-chart = ChartModule([{"Label": "Citizens",
+chart = ChartModule([{"Label": "Bribing",
                       "Color": "green"},
-                      {"Label": "Cops",
+                      {"Label": "NotBribing",
                       "Color": "blue"}],
                     data_collector_name='datacollector')
+# chart = ChartModule([{"Label": "Citizens",
+#                       "Color": "green"},
+#                       {"Label": "Cops",
+#                       "Color": "blue"}],
+#                     data_collector_name='datacollector')
 
 # Create the server, and pass the grid and the graph
 server = ModularServer(CopCitizen,
