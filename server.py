@@ -15,9 +15,9 @@ def agent_portrayal(agent):
     return portrayal
 
 # Create a dynamic linegraph
-chart = ChartModule([{"Label": "Citizen",
+chart = ChartModule([{"Label": "Citizens",
                       "Color": "green"},
-                      {"Label": "Cop",
+                      {"Label": "Cops",
                       "Color": "blue"}],
                     data_collector_name='datacollector')
 
