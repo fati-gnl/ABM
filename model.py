@@ -1,5 +1,6 @@
 import random
 
+import axelrod as axl
 from mesa import Model
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
@@ -12,9 +13,7 @@ class CopCitizen(Model):
     Corruption Model: Citizens and Cops
     '''
 
-    def __init__(self, height=20, width=20,
-                 initial_citizens=7, initial_cops=5,
-                 sheep_reproduction_chance=0.05, wolf_death_chance=0.05):
+    def __init__(self, initial_citizens=100, initial_cops=0, strategies=[axl.Cooperator, axl.Defector]):
 
         super().__init__()
 
@@ -36,18 +35,24 @@ class CopCitizen(Model):
 
         # Create citizens
         for i in range(self.initial_citizens):
-            citizen = Citizen(self.next_id(), self)
+            citizen = Citizen(self.next_id(), self, None)
             self.schedule_Citizen.add(citizen)
 
         # Create cops: No two cops should be placed on the same cell
         for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self)
+            cop = Cop(self.next_id(), self, random.choice(strategies))
             self.schedule_Cop.add(cop)
 
         # Needed for the Batch run
         self.running = True
         # Needed for the datacollector
         self.datacollector.collect(self)
+
+    def remove_agent(self, agent):
+        '''
+        Method that removes an agent from the grid and the correct scheduler.
+        '''
+        getattr(self, f'schedule_{type(agent).__name__}').remove(agent)
 
     def step(self):
         '''
@@ -56,6 +61,7 @@ class CopCitizen(Model):
         self.schedule_Citizen.step()
         self.schedule_Cop.step()
 
+        print(self.schedule_Citizen.get_agent_count())
         # Save the statistics
         self.datacollector.collect(self)
 

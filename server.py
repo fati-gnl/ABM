@@ -14,9 +14,6 @@ def agent_portrayal(agent):
                  "r": 0.5}
     return portrayal
 
-# Create a grid of 20 by 20 cells, and display it as 500 by 500 pixels
-grid = CanvasGrid(agent_portrayal, 20, 20, 500, 500)
-
 # Create a dynamic linegraph
 chart = ChartModule([{"Label": "Citizen",
                       "Color": "green"},
@@ -26,7 +23,7 @@ chart = ChartModule([{"Label": "Citizen",
 
 # Create the server, and pass the grid and the graph
 server = ModularServer(CopCitizen,
-                       [grid, chart],
+                       [chart],
                        "CopCitizen Model",
                        {})
 
