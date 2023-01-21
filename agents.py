@@ -19,7 +19,7 @@ class Citizen(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.actions = Citizen_actions
-        self.payoffs = dict.fromkeys(self.actions, 0)
+        self.payoffs = dict.fromkeys(self.actions, 0.01)
         self.action = None
 
     def step(self):
@@ -77,11 +77,10 @@ class Cop(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.actions = Cop_actions
-        self.payoffs = dict.fromkeys(self.actions, 0)
+        self.payoffs = dict.fromkeys(self.actions, 0.01)
         self.moral_commitment = random.random()
         self.action = None
         self.bribe = 0.5
-        self.accumulated_payoff= 0
 
     def do_action(self):
         # categorical distribution over payoffs
