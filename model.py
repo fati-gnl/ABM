@@ -9,8 +9,6 @@ from mesa.time import RandomActivation
 from agents import Citizen, Cop
 
 
-
-
 class CopCitizen(Model):
     '''
     Corruption Model: Citizens and Cops
@@ -23,8 +21,8 @@ class CopCitizen(Model):
         self.initial_citizens = initial_citizens
         self.initial_cops = initial_cops
 
-        # Add a schedule for citizens and cops seperately to prevent race-conditions
-        # Check if they can be drawn instead (citizens)
+        # TODO: check if COp schedule could be removed
+        # TODO: maybe other type of scheduler would be better?
         self.schedule_Citizen = RandomActivation(self)
         self.schedule_Cop = RandomActivation(self)
 
@@ -34,7 +32,8 @@ class CopCitizen(Model):
             {"Citizens": lambda m: self.schedule_Citizen.get_agent_count(),
              "Cops": lambda m: self.schedule_Cop.get_agent_count(),
              "Bribing": lambda m: sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
-             "NotBribing": lambda m:self.schedule_Cop.get_agent_count()- sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
+             "NotBribing": lambda m: self.schedule_Cop.get_agent_count() - sum(
+                 [1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
              })
 
         # Create citizens
@@ -52,28 +51,33 @@ class CopCitizen(Model):
         # Needed for the datacollector
         self.datacollector.collect(self)
 
+        # TODO: make it change depending on the environment
+        # TODO: decide if should be moved to each agent individually
         self.prob_prosecution = 0.2
 
-    def remove_agent(self, agent):
-        '''
-        Method that removes an agent from the grid and the correct scheduler.
-        '''
-        getattr(self, f'schedule_{type(agent).__name__}').remove(agent)
+        # This should be 1 so other values are more or less normalized in respect to it
+        self.fine = 1.
+
+        # This I think should be here as it's more global?
+        self.cost_of_complaining = 0.1
+        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
+        self.cost_of_silence = 0.1
+        # This is systematic, so I think global is good
+        self.penalty_citizen = 0.1
+        self.penalty_cop = 0.1
+        self.reward_citizen = 0.1
 
     def step(self):
         '''
         Method that calls the step method for each of the citizens, and then for each of the cops.
         '''
+        # Create list of available cops so then caught citizen can be assigned to one cop
         self.available_cops = self.schedule_Cop.agents.copy()
+        # Number of caught citizens should be from 0 to num of cops as not always all cops are busy
         number_of_citizens = random.randint(0, self.schedule_Cop.get_agent_count())
-        self.caught_citizens= random.choices(self.schedule_Citizen.agents, k=number_of_citizens)
+        self.caught_citizens = random.choices(self.schedule_Citizen.agents, k=number_of_citizens)
 
         self.schedule_Citizen.step()
-        # self.schedule_Cop.step()
-
-
-        # print(self.schedule_Citizen.get_agent_count())
-        print(sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]))
         # Save the statistics
         self.datacollector.collect(self)
 
@@ -85,7 +89,11 @@ class CopCitizen(Model):
             self.step()
 
     def get_cop(self):
+        '''
+        Gets a cop from the available cops, this cop is not available anymore.
+        If all cops busy, return None
+        :return: Cop object or None
+        '''
         if len(self.available_cops) > 0:
-            return random.sample(self.available_cops,1)[0]
+            return random.sample(self.available_cops, 1)[0]
         return None
-
