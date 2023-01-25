@@ -14,12 +14,18 @@ class CopCitizen(Model):
     Corruption Model: Citizens and Cops
     '''
 
-    def __init__(self, initial_citizens=100, initial_cops=10):
+    def __init__(self, initial_citizens=100, initial_cops=10, rationality_of_agents=0.8):
+        '''
 
+        :param initial_citizens:
+        :param initial_cops:
+        :param rationality_of_agents: 0 agents completely random, 1 completely rational
+        '''
         super().__init__()
 
         self.initial_citizens = initial_citizens
         self.initial_cops = initial_cops
+        self.lambda_ = rationality_of_agents
 
         # TODO: check if COp schedule could be removed
         # TODO: maybe other type of scheduler would be better?
@@ -38,12 +44,12 @@ class CopCitizen(Model):
 
         # Create citizens
         for i in range(self.initial_citizens):
-            citizen = Citizen(self.next_id(), self)
+            citizen = Citizen(self.next_id(), self, self.lambda_)
             self.schedule_Citizen.add(citizen)
 
         # Create cops: No two cops should be placed on the same cell
         for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self)
+            cop = Cop(self.next_id(), self, self.lambda_)
             self.schedule_Cop.add(cop)
 
         # Needed for the Batch run

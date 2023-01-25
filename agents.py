@@ -1,20 +1,68 @@
+from typing import List, Type
+
+import numpy as np
 import numpy.random
 from mesa import Agent
 import random
 
-CITIZEN_ACTIONS = ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
-COP_ACTIONS = ["bribe", "not_bribe"]
+
+# CITIZEN_ACTIONS = ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
+# COP_ACTIONS = ["bribe", "not_bribe"]
 
 
+class Actions:
+    @staticmethod
+    def get_actions(agent_type: Type[Agent]) -> List[str]:
+        if agent_type == Cop:
+            return ["bribe", "not_bribe"]
+        elif agent_type == Citizen:
+            return ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
 
 
-class Citizen(Agent):
-    def __init__(self, unique_id, model):
+class PayoffAgent(Agent):
+    def __init__(self, unique_id, model, lambda_):
         super().__init__(unique_id, model)
-        self.actions = CITIZEN_ACTIONS.copy()
-        # Payoff matrix for the individual citizen. Initialized at 0.01 so there is a chance of playing each action.
-        self.payoffs = dict.fromkeys(self.actions, 0.01)
+        self.lambda_ = lambda_
+
+        self.actions = []
+
         self.action = None
+
+    def init_action_dicts(self):
+        # Payoff matrix for the individual citizen.
+        self.payoffs = dict.fromkeys(self.actions, 0.01)
+        self.action_count = dict.fromkeys(self.actions, 0)
+
+    def avg_payoffs(self):
+        '''
+        Take an average of payoffs
+        :return: averaged payoff matrix
+        '''
+        mean_payoffs = [
+            self.payoffs[action] / self.action_count[action] if self.action_count[action] > 0 else self.payoffs[action]
+            for action in self.actions]
+        return mean_payoffs
+
+    def softmax(self, x):
+        """Compute softmax values for each sets of scores in x."""
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+
+    def choose_action(self):
+        '''
+        :return: Action number
+        '''
+        avg_payoffs = np.array(self.avg_payoffs())
+        # logit equilibrium distribution
+        distribution = self.softmax(self.lambda_ * avg_payoffs)
+        return numpy.argmax(numpy.random.multinomial(1, distribution))
+
+
+class Citizen(PayoffAgent):
+    def __init__(self, unique_id, model, lambda_):
+        super().__init__(unique_id, model, lambda_)
+        self.actions = Actions.get_actions(Citizen)
+        self.init_action_dicts()
 
     def step(self):
         '''
@@ -38,22 +86,25 @@ class Citizen(Agent):
 
         # TODO: change the utilities here according to the new ones
         # depending on the choices different payoff is assigned
-        if cop.action == COP_ACTIONS[0]:
+        if cop.action == Actions.get_actions(Cop)[0]:
             # bribe
-            if self.action == CITIZEN_ACTIONS[0]:
+            if self.action == Actions.get_actions(Citizen)[0]:
                 # accept_and_complain
-                self.payoffs[self.action] += - cop.bribe - self.model.cost_of_complaining + self.model.prob_prosecution * (
+                self.payoffs[
+                    self.action] += - cop.bribe - self.model.cost_of_complaining + self.model.prob_prosecution * (
                         self.model.reward_citizen - self.model.penalty_citizen)
-                cop.payoffs[cop.action] += cop.bribe - self.model.prob_prosecution * (self.model.penalty_cop + cop.bribe)
-            elif self.action == CITIZEN_ACTIONS[1]:
+                cop.payoffs[cop.action] += cop.bribe - self.model.prob_prosecution * (
+                        self.model.penalty_cop + cop.bribe)
+            elif self.action == Actions.get_actions(Citizen)[1]:
                 # accept_and_silent
                 self.payoffs[self.action] += - cop.bribe - self.model.cost_of_silence
                 cop.payoffs[cop.action] += cop.bribe
-            elif self.action == CITIZEN_ACTIONS[2]:
+            elif self.action == Actions.get_actions(Citizen)[2]:
                 # reject_and_complain
-                self.payoffs[self.action] += -self.model.cost_of_complaining + self.model.prob_prosecution * (self.model.reward_citizen)
+                self.payoffs[self.action] += -self.model.cost_of_complaining + self.model.prob_prosecution * (
+                    self.model.reward_citizen)
                 cop.payoffs[cop.action] += self.model.prob_prosecution * self.model.penalty_cop
-            elif self.action == CITIZEN_ACTIONS[3]:
+            elif self.action == Actions.get_actions(Citizen)[3]:
                 # reject_and_silent
                 self.payoffs[self.action] += self.model.cost_of_silence
                 cop.payoffs[cop.action] += 0
@@ -68,37 +119,31 @@ class Citizen(Agent):
         This function sets an action to a chosen action.
         The action is chosen based on the payoff matrix of the agent.
         '''
-        # TODO change to a logit function instead
-        payoff_sum = sum(list(self.payoffs.values()))
-        payoff_sum = 1 if payoff_sum == 0 else payoff_sum
-        normalized_payoffs = [x / payoff_sum for x in list(self.payoffs.values())]
-        # categorical distribution over payoffs
-        self.action = CITIZEN_ACTIONS[ numpy.argmax(numpy.random.multinomial(1, normalized_payoffs))]
+        self.action = Actions.get_actions(Citizen)[self.choose_action()]
+        self.action_count[self.action] += 1
 
-class Cop(Agent):
 
-    def __init__(self, unique_id, model):
-        super().__init__(unique_id, model)
-        self.actions = COP_ACTIONS.copy()
-        # Payoff matrix for the individual citizen. Initialized at 0.01 so there is a chance of playing each action.
-        self.payoffs = dict.fromkeys(self.actions, 0.01)
+class Cop(PayoffAgent):
+
+    def __init__(self, unique_id, model, lambda_):
+        super().__init__(unique_id, model, lambda_)
+        self.actions = Actions.get_actions(Cop)
+
         # Each cop has a different moral commitment value, drawn from a normal distribution.
         # TODO: change to normal distribution
-        self.moral_commitment = random.random()
-        self.action = None
+        self.moral_commitment = 0.1
+        # self.moral_commitment = random.random()
+
         # Each cop has a different bribe value as they're greediness varies, drawn from a normal distribution.
         # TODO: change to normal distribution
         self.bribe = 0.5
+
+        self.init_action_dicts()
 
     def do_action(self):
         '''
         This function sets an action to a chosen action.
         The action is chosen based on the payoff matrix of the agent.
         '''
-        # TODO: change to a logit function instead
-        # TODO: extract the function out of this
-        # categorical distribution over payoffs
-        payoff_sum = sum(list(self.payoffs.values()))
-        payoff_sum =1 if payoff_sum==0 else payoff_sum
-        normalized_payoffs = [x / payoff_sum for x in list(self.payoffs.values())]
-        self.action =COP_ACTIONS[numpy.argmax(numpy.random.multinomial(1, normalized_payoffs))]
+        self.action = Actions.get_actions(Cop)[self.choose_action()]
+        self.action_count[self.action] += 1
