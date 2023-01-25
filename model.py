@@ -14,7 +14,8 @@ class CopCitizen(Model):
     Corruption Model: Citizens and Cops
     '''
 
-    def __init__(self, initial_citizens=100, initial_cops=10, rationality_of_agents=0.8):
+    def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1, bribe_mean_std=(0.5, 0.1),
+                 moral_commitment_mean_std=(0.3, 0.2)):
         '''
 
         :param initial_citizens:
@@ -49,7 +50,8 @@ class CopCitizen(Model):
 
         # Create cops: No two cops should be placed on the same cell
         for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self, self.lambda_)
+            cop = Cop(self.next_id(), self, self.lambda_, bribe_mean_std=bribe_mean_std,
+                      moral_commitment_mean_std=moral_commitment_mean_std)
             self.schedule_Cop.add(cop)
 
         # Needed for the Batch run

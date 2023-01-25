@@ -125,18 +125,14 @@ class Citizen(PayoffAgent):
 
 class Cop(PayoffAgent):
 
-    def __init__(self, unique_id, model, lambda_):
+    def __init__(self, unique_id, model, lambda_, bribe_mean_std=(0.5, 0.1), moral_commitment_mean_std=(0.3, 0.2)):
         super().__init__(unique_id, model, lambda_)
         self.actions = Actions.get_actions(Cop)
 
         # Each cop has a different moral commitment value, drawn from a normal distribution.
-        # TODO: change to normal distribution
-        self.moral_commitment = 0.1
-        # self.moral_commitment = random.random()
-
+        self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
         # Each cop has a different bribe value as they're greediness varies, drawn from a normal distribution.
-        # TODO: change to normal distribution
-        self.bribe = 0.5
+        self.bribe = np.random.normal(loc=bribe_mean_std[0], scale=bribe_mean_std[1])
 
         self.init_action_dicts()
 
