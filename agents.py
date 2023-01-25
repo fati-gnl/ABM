@@ -6,10 +6,6 @@ from mesa import Agent
 import random
 
 
-# CITIZEN_ACTIONS = ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
-# COP_ACTIONS = ["bribe", "not_bribe"]
-
-
 class Actions:
     @staticmethod
     def get_actions(agent_type: Type[Agent]) -> List[str]:
@@ -84,7 +80,6 @@ class Citizen(PayoffAgent):
         # citizen makes an action based on payoff matrix
         self.do_action()
 
-        # TODO: change the utilities here according to the new ones
         # depending on the choices different payoff is assigned
         if cop.action == Actions.get_actions(Cop)[0]:
             # bribe

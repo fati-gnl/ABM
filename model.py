@@ -4,7 +4,7 @@ import axelrod as axl
 from mesa import Model
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
-from mesa.time import RandomActivation
+from mesa.time import BaseScheduler
 
 from agents import Citizen, Cop
 
@@ -30,17 +30,15 @@ class CopCitizen(Model):
 
         # TODO: check if COp schedule could be removed
         # TODO: maybe other type of scheduler would be better?
-        self.schedule_Citizen = RandomActivation(self)
-        self.schedule_Cop = RandomActivation(self)
+        self.schedule_Citizen = BaseScheduler(self)
+        self.schedule_Cop = BaseScheduler(self)
 
         # Data collector to be able to save the data - cop and citizen count
-        # Todo: We should collect other data - I guess total money
+        # Todo: We should collect other data - maybe mean payoff or total payoff. For sure citizens actions
         self.datacollector = DataCollector(
             {"Citizens": lambda m: self.schedule_Citizen.get_agent_count(),
              "Cops": lambda m: self.schedule_Cop.get_agent_count(),
-             "Bribing": lambda m: sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
-             "NotBribing": lambda m: self.schedule_Cop.get_agent_count() - sum(
-                 [1 for cop in self.schedule_Cop.agents if cop.action == "bribe"]),
+             "Bribing": lambda m: sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"])/self.schedule_Cop.get_agent_count(),
              })
 
         # Create citizens
