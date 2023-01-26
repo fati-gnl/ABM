@@ -5,6 +5,8 @@ from mesa.batchrunner import BatchRunner
 import numpy as np
 import matplotlib.pyplot as plt
 
+#random comment
+
 problem = {
     'num_vars': 6,
     'names': ['prob_prosecution', 'cost_of_complaining', 'cost_of_silence', 'reward_citizen', 'penalty_citizen',
