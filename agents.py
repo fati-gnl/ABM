@@ -5,7 +5,6 @@ import numpy.random
 from mesa import Agent
 import random
 
-
 class Actions:
     @staticmethod
     def get_actions(agent_type: Type[Agent]) -> List[str]:
@@ -13,7 +12,6 @@ class Actions:
             return ["bribe", "not_bribe"]
         elif agent_type == Citizen:
             return ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
-
 
 class PayoffAgent(Agent):
     def __init__(self, unique_id, model, lambda_):
@@ -59,11 +57,13 @@ class Citizen(PayoffAgent):
         super().__init__(unique_id, model, lambda_)
         self.actions = Actions.get_actions(Citizen)
         self.init_action_dicts()
+        self.action = None
 
     def step(self):
         '''
         This method should check first if a citizen is in the caught citizens. Then if so the citizen should play
         '''
+        self.action = None
         if self.unique_id in [citizen.unique_id for citizen in self.model.caught_citizens]:
             self.play()
 
@@ -123,6 +123,7 @@ class Cop(PayoffAgent):
     def __init__(self, unique_id, model, lambda_, bribe_mean_std=(0.5, 0.1), moral_commitment_mean_std=(0.3, 0.2)):
         super().__init__(unique_id, model, lambda_)
         self.actions = Actions.get_actions(Cop)
+        self.action = None
 
         # Each cop has a different moral commitment value, drawn from a normal distribution.
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
@@ -130,6 +131,9 @@ class Cop(PayoffAgent):
         self.bribe = np.random.normal(loc=bribe_mean_std[0], scale=bribe_mean_std[1])
 
         self.init_action_dicts()
+
+    def step(self):
+        self.action = None
 
     def do_action(self):
         '''

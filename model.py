@@ -8,7 +8,6 @@ from mesa.time import BaseScheduler
 
 from agents import Citizen, Cop
 
-
 class CopCitizen(Model):
     '''
     Corruption Model: Citizens and Cops
@@ -17,7 +16,6 @@ class CopCitizen(Model):
     def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1, bribe_mean_std=(0.5, 0.1),
                  moral_commitment_mean_std=(0.3, 0.2)):
         '''
-
         :param initial_citizens:
         :param initial_cops:
         :param rationality_of_agents: 0 agents completely random, 1 completely rational
@@ -25,32 +23,36 @@ class CopCitizen(Model):
         super().__init__()
 
         self.initial_citizens = initial_citizens
+        self.number_of_citizens = 1
         self.initial_cops = initial_cops
         self.lambda_ = rationality_of_agents
 
-        # TODO: check if COp schedule could be removed
-        # TODO: maybe other type of scheduler would be better?
-        self.schedule_Citizen = BaseScheduler(self)
-        self.schedule_Cop = BaseScheduler(self)
+        # Create a scheduler for all agents
+        self.schedule = BaseScheduler(self)
 
         # Data collector to be able to save the data - cop and citizen count
         # Todo: We should collect other data - maybe mean payoff or total payoff. For sure citizens actions
+        # Mean payoffs, Action distribution, Citizen's complaints rate
+        # Already implemented: bribing rate
         self.datacollector = DataCollector(
-            {"Citizens": lambda m: self.schedule_Citizen.get_agent_count(),
-             "Cops": lambda m: self.schedule_Cop.get_agent_count(),
-             "Bribing": lambda m: sum([1 for cop in self.schedule_Cop.agents if cop.action == "bribe"])/self.schedule_Cop.get_agent_count(),
+            {"Citizens": lambda m: sum(1 for agent in self.schedule.agents if isinstance(agent, Citizen)),
+             "Cops":lambda m: sum(1 for agent in self.schedule.agents if isinstance(agent, Cop)),
+             "Bribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/self.number_of_citizens,
+             "NoBribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "not_bribe"])/self.number_of_citizens,
+             "ComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_complain" or cit.action == "reject_and_complain")])/self.number_of_citizens,
+             "NoComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_silent" or cit.action == "reject_and_silent")])/self.number_of_citizens,
              })
+
+        # Create cops
+        for i in range(self.initial_cops):
+            cop = Cop(self.next_id(), self, self.lambda_, bribe_mean_std=bribe_mean_std,
+                      moral_commitment_mean_std=moral_commitment_mean_std)
+            self.schedule.add(cop)
 
         # Create citizens
         for i in range(self.initial_citizens):
             citizen = Citizen(self.next_id(), self, self.lambda_)
-            self.schedule_Citizen.add(citizen)
-
-        # Create cops: No two cops should be placed on the same cell
-        for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self, self.lambda_, bribe_mean_std=bribe_mean_std,
-                      moral_commitment_mean_std=moral_commitment_mean_std)
-            self.schedule_Cop.add(cop)
+            self.schedule.add(citizen)
 
         # Needed for the Batch run
         self.running = True
@@ -59,7 +61,7 @@ class CopCitizen(Model):
 
         # TODO: make it change depending on the environment
         # TODO: decide if should be moved to each agent individually
-        self.prob_prosecution = 0.2
+        self.prob_prosecution = 0
 
         # This should be 1 so other values are more or less normalized in respect to it
         self.fine = 1.
@@ -77,22 +79,20 @@ class CopCitizen(Model):
         '''
         Method that calls the step method for each of the citizens, and then for each of the cops.
         '''
-        # Create list of available cops so then caught citizen can be assigned to one cop
-        self.available_cops = self.schedule_Cop.agents.copy()
-        # Number of caught citizens should be from 0 to num of cops as not always all cops are busy
-        number_of_citizens = random.randint(0, self.schedule_Cop.get_agent_count())
-        self.caught_citizens = random.choices(self.schedule_Citizen.agents, k=number_of_citizens)
 
-        self.schedule_Citizen.step()
+        # Create list of available cops so then caught citizen can be assigned to one cop
+        self.available_cops = [agent for agent in self.schedule.agents if isinstance(agent, Cop)]
+
+        # Number of caught citizens should be from 0 to num of cops as not always all cops are busy
+        #self.number_of_citizens = random.randint(1, len(list(filter(lambda a: type(a) == Cop, self.schedule.agents))))
+        self.number_of_citizens = len(list(filter(lambda a: type(a) == Cop, self.schedule.agents)))
+
+        self.caught_citizens = random.choices([agent for agent in self.schedule.agents if isinstance(agent, Citizen)], k=self.number_of_citizens)
+
+        self.schedule.step()
+
         # Save the statistics
         self.datacollector.collect(self)
-
-    def run_model(self, step_count=5):
-        '''
-        Method that runs the model for a specific amount of steps.
-        '''
-        for i in range(step_count):
-            self.step()
 
     def get_cop(self):
         '''
@@ -101,5 +101,7 @@ class CopCitizen(Model):
         :return: Cop object or None
         '''
         if len(self.available_cops) > 0:
-            return random.sample(self.available_cops, 1)[0]
+            cop =  random.sample(self.available_cops, 1)[0]
+            self.available_cops.remove(cop)
+            return cop
         return None
