@@ -14,13 +14,28 @@ class CopCitizen(Model):
     '''
 
     def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1, bribe_mean_std=(0.5, 0.1),
-                 moral_commitment_mean_std=(0.3, 0.2)):
+                 moral_commitment_mean_std=(0.3, 0.2), prob_prosecution = 1, cost_of_complaining = 0.1, cost_of_silence = 0.1, fine = 1, penalty_citizen = 0.1, penalty_cop = 0.1, reward_citizen = 0.1):
         '''
         :param initial_citizens:
         :param initial_cops:
         :param rationality_of_agents: 0 agents completely random, 1 completely rational
         '''
         super().__init__()
+
+        self.prob_prosecution = prob_prosecution
+
+        # This should be 1 so other values are more or less normalized in respect to it
+        self.fine = fine
+
+        # This I think should be here as it's more global?
+        self.cost_of_complaining = cost_of_complaining
+        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
+        self.cost_of_silence = cost_of_silence
+        # This is systematic, so I think global is good
+        self.penalty_citizen = penalty_citizen
+        self.penalty_cop = penalty_cop
+        self.reward_citizen = reward_citizen
+
 
         self.initial_citizens = initial_citizens
         self.number_of_citizens = 1
@@ -61,19 +76,7 @@ class CopCitizen(Model):
 
         # TODO: make it change depending on the environment
         # TODO: decide if should be moved to each agent individually
-        self.prob_prosecution = 0
 
-        # This should be 1 so other values are more or less normalized in respect to it
-        self.fine = 1.
-
-        # This I think should be here as it's more global?
-        self.cost_of_complaining = 0.1
-        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
-        self.cost_of_silence = 0.1
-        # This is systematic, so I think global is good
-        self.penalty_citizen = 0.1
-        self.penalty_cop = 0.1
-        self.reward_citizen = 0.1
 
     def step(self):
         '''
