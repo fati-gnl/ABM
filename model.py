@@ -13,14 +13,29 @@ class CopCitizen(Model):
     Corruption Model: Citizens and Cops
     '''
 
-    def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1, bribe_mean_std=(0.5, 0.1),
-                 moral_commitment_mean_std=(0.3, 0.2)):
+    def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1,
+                 moral_commitment_mean_std=(0.3, 0.2), prob_prosecution=1, cost_of_complaining=0.1, cost_of_silence=0.1,
+                 fine=1, penalty_citizen=0.1, penalty_cop=0.1, reward_citizen=0.1, bribe_amount=5, cost_of_accepting = 0.1, prob_succesful_complain = 1):
         '''
         :param initial_citizens:
         :param initial_cops:
         :param rationality_of_agents: 0 agents completely random, 1 completely rational
         '''
         super().__init__()
+
+        # This should be 1 so other values are more or less normalized in respect to it
+        self.fine = fine
+        self.bribe_amount = bribe_amount
+        self.cost_of_complaining = cost_of_complaining
+        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
+        self.cost_of_silence = cost_of_silence
+        self.penalty_citizen = penalty_citizen
+        self.penalty_cop = penalty_cop
+        self.reward_citizen = reward_citizen
+        self.cost_of_accepting = cost_of_accepting
+        self.prob_succesful_complain = prob_succesful_complain
+
+        self.jail_time = 0
 
         self.initial_citizens = initial_citizens
         self.number_of_citizens = 1
@@ -35,9 +50,7 @@ class CopCitizen(Model):
         # Mean payoffs, Action distribution, Citizen's complaints rate
         # Already implemented: bribing rate
         self.datacollector = DataCollector(
-            {"Citizens": lambda m: sum(1 for agent in self.schedule.agents if isinstance(agent, Citizen)),
-             "Cops":lambda m: sum(1 for agent in self.schedule.agents if isinstance(agent, Cop)),
-             "Bribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/self.number_of_citizens,
+            {"Bribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/self.number_of_citizens,
              "NoBribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "not_bribe"])/self.number_of_citizens,
              "ComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_complain" or cit.action == "reject_and_complain")])/self.number_of_citizens,
              "NoComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_silent" or cit.action == "reject_and_silent")])/self.number_of_citizens,
@@ -45,8 +58,7 @@ class CopCitizen(Model):
 
         # Create cops
         for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self, self.lambda_, bribe_mean_std=bribe_mean_std,
-                      moral_commitment_mean_std=moral_commitment_mean_std)
+            cop = Cop(self.next_id(), self, self.lambda_, jail_time = 0, moral_commitment_mean_std=moral_commitment_mean_std)
             self.schedule.add(cop)
 
         # Create citizens
@@ -61,31 +73,45 @@ class CopCitizen(Model):
 
         # TODO: make it change depending on the environment
         # TODO: decide if should be moved to each agent individually
-        self.prob_prosecution = 0
+        self.prob_prosecution = 1
 
         # This should be 1 so other values are more or less normalized in respect to it
         self.fine = 1.
 
         # This I think should be here as it's more global?
-        self.cost_of_complaining = 0.1
+        self.cost_of_complaining = 0
         # TODO: Should this be different for each individual? Or dependent on an environment somehow?
-        self.cost_of_silence = 0.1
+        self.cost_of_silence = 0.9
         # This is systematic, so I think global is good
         self.penalty_citizen = 0.1
-        self.penalty_cop = 0.1
-        self.reward_citizen = 0.1
+        self.penalty_cop = 60.
+        self.reward_citizen = 10
+
+        # Create social groups or networks (groups of cops that will see the actions that their friends took in the past)
+        self.cop_list = [agent for agent in self.schedule.agents if isinstance(agent, Cop)]
+        self.network = self.social_connections(self.cop_list, 10)
 
     def step(self):
         '''
         Method that calls the step method for each of the citizens, and then for each of the cops.
         '''
 
-        # Create list of available cops so then caught citizen can be assigned to one cop
-        self.available_cops = [agent for agent in self.schedule.agents if isinstance(agent, Cop)]
+        # Calculate if the cops in each group have been to prision or not
+        n_prision_count = []
+        for groups in self.network:
+            prision_count = []
+            for agent in groups:
+                if (agent.jail_time > 0):
+                    prision_count.append(1)
+            n_prision_count.append(sum(prision_count))
 
-        # Number of caught citizens should be from 0 to num of cops as not always all cops are busy
-        #self.number_of_citizens = random.randint(1, len(list(filter(lambda a: type(a) == Cop, self.schedule.agents))))
-        self.number_of_citizens = len(list(filter(lambda a: type(a) == Cop, self.schedule.agents)))
+        print(n_prision_count)
+
+        # Create list of cops that will be used to keep track of which cops have already served a citizen in that step
+        self.available_cops = [agent for agent in self.schedule.agents if isinstance(agent, Cop) and agent.jail_time == 0]
+
+        # Number of citizens == number of cops
+        self.number_of_citizens = len(list(filter(lambda a: type(a) == Cop and a.jail_time == 0, self.schedule.agents)))
 
         self.caught_citizens = random.choices([agent for agent in self.schedule.agents if isinstance(agent, Citizen)], k=self.number_of_citizens)
 
@@ -93,6 +119,12 @@ class CopCitizen(Model):
 
         # Save the statistics
         self.datacollector.collect(self)
+
+        # Reduce jail_time
+        for groups in self.network:
+            for agent in groups:
+                if agent.jail_time != 0:
+                    agent.jail_time -= 1
 
     def get_cop(self):
         '''
@@ -105,3 +137,13 @@ class CopCitizen(Model):
             self.available_cops.remove(cop)
             return cop
         return None
+
+    def social_connections(self, available_cops, group_size):
+        '''
+        Groups all the cops into smaller groups of cops (their social network)
+        :return:
+        '''
+        social_groups = []
+        for i in range(0, len(available_cops), group_size):
+            social_groups.append(available_cops[i:i + group_size])
+        return social_groups

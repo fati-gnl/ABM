@@ -24,7 +24,7 @@ class PayoffAgent(Agent):
 
     def init_action_dicts(self):
         # Payoff matrix for the individual citizen.
-        self.payoffs = dict.fromkeys(self.actions, 0.01)
+        self.payoffs = dict.fromkeys(self.actions, 0)
         self.action_count = dict.fromkeys(self.actions, 0)
 
     def avg_payoffs(self):
@@ -53,11 +53,14 @@ class PayoffAgent(Agent):
 
 
 class Citizen(PayoffAgent):
-    def __init__(self, unique_id, model, lambda_):
+    def __init__(self, unique_id, model, lambda_, reward = 50):
         super().__init__(unique_id, model, lambda_)
+
         self.actions = Actions.get_actions(Citizen)
         self.init_action_dicts()
         self.action = None
+
+        self.reward = reward
 
     def step(self):
         '''
@@ -77,20 +80,19 @@ class Citizen(PayoffAgent):
         cop = self.model.get_cop()
         # cop makes an action based on payoff matrix
         cop.do_action()
-        # citizen makes an action based on payoff matrix
-        self.do_action()
 
         # depending on the choices different payoff is assigned
-        if cop.action == Actions.get_actions(Cop)[0]:
+        if cop.action == "bribe":
+            self.do_action()
+
             # bribe
-            if self.action == Actions.get_actions(Citizen)[0]:
-                # accept_and_complain
-                self.payoffs[
-                    self.action] += - cop.bribe - self.model.cost_of_complaining + self.model.prob_prosecution * (
-                        self.model.reward_citizen - self.model.penalty_citizen)
-                cop.payoffs[cop.action] += cop.bribe - self.model.prob_prosecution * (
-                        self.model.penalty_cop + cop.bribe)
-            elif self.action == Actions.get_actions(Citizen)[1]:
+            if self.action == "accept_and_complain":
+
+                self.payoffs[self.action] += -cop.bribe_amount - self.model.cost_of_complaining - self.model.prob_succesful_complain * \
+                                             (self.model.reward_citizen - self.model.penalty_citizen) - self.model.cost_of_accepting
+
+            elif self.action == "accept_and_silent":
+
                 # accept_and_silent
                 self.payoffs[self.action] += - cop.bribe - self.model.cost_of_silence
                 cop.payoffs[cop.action] += cop.bribe
@@ -101,13 +103,14 @@ class Citizen(PayoffAgent):
                 cop.payoffs[cop.action] += self.model.prob_prosecution * self.model.penalty_cop
             elif self.action == Actions.get_actions(Citizen)[3]:
                 # reject_and_silent
-                self.payoffs[self.action] += self.model.cost_of_silence
-                cop.payoffs[cop.action] += 0
+                self.payoffs[self.action] += -cop.fine - self.model.cost_of_silence
 
+                # cop.payoffs[cop.action] += 0
         else:
-            # no bribe
-            self.payoffs[self.action] += -self.model.fine
-            cop.payoffs[cop.action] += cop.moral_commitment
+            pass
+
+            #self.payoffs[self.action] += 0
+            #cop.payoffs[cop.action] += cop.moral_commitment
 
     def do_action(self):
         '''
@@ -124,6 +127,10 @@ class Cop(PayoffAgent):
         super().__init__(unique_id, model, lambda_)
         self.actions = Actions.get_actions(Cop)
         self.action = None
+
+        self.jail_time = random.randint(0,1)
+        self.bribe_amount = bribe_amount
+        self.fine = fine
 
         # Each cop has a different moral commitment value, drawn from a normal distribution.
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
