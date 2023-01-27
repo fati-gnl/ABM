@@ -5,11 +5,12 @@ from mesa.batchrunner import BatchRunner, FixedBatchRunner
 import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from statsmodels.distributions.mixture_rvs import mixture_rvs
+from SALib.sample import saltelli
+from SALib.analyze import sobol
+import pandas as pd
 
 
-
-#random comment
+#Local Sensitivity Analysis
 
 problem = {
     'num_vars': 6,
@@ -91,20 +92,20 @@ def plot_all_vars(df, param):
 #     plot_all_vars(data, param)
 #     plt.show()
 #RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
-data_fixed = {}
-
-batch_fixed = FixedBatchRunner(CopCitizen,
-                               parameters_list=[
-                                   {'prob_prosecution': 0.9, 'cost_of_complaining': 0.6, 'cost_of_silence': 20,
-                                    'reward_citizen': 2, 'penalty_citizen':10,'penalty_cop':60}],
-                               iterations=200,
-                               max_steps=max_steps,
-                               model_reporters=model_reporters)
-batch_fixed.run_all()
-
-data_fixed = batch_fixed.get_model_vars_dataframe()
-amount_bribe = data_fixed["Bribing"].values
-amount_nobribe = data_fixed["NoBribing"].values
+# data_fixed = {}
+#
+# batch_fixed = FixedBatchRunner(CopCitizen,
+#                                parameters_list=[
+#                                    {'prob_prosecution': 0.9, 'cost_of_complaining': 0.6, 'cost_of_silence': 20,
+#                                     'reward_citizen': 2, 'penalty_citizen':10,'penalty_cop':60}],
+#                                iterations=200,
+#                                max_steps=max_steps,
+#                                model_reporters=model_reporters)
+# batch_fixed.run_all()
+#
+# data_fixed = batch_fixed.get_model_vars_dataframe()
+# amount_bribe = data_fixed["Bribing"].values
+# amount_nobribe = data_fixed["NoBribing"].values
 
 def plot_dist(data, data_name):
     fig = plt.figure(figsize=(12, 5))
@@ -133,8 +134,47 @@ def plot_dist(data, data_name):
     ax.grid(True, zorder=-5)
     plt.show()
 
-for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
-    plot_dist(data, label)
+# for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
+#     plot_dist(data, label)
 
 
+#Global Sensitivity Analysis
+replicates_global = 3
+max_steps_global = 100
+distinct_samples_global = 10
+
+# We get all our samples here
+param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
+
+batch_global = BatchRunner(CopCitizen,
+                    max_steps=max_steps_global,
+                    variable_parameters={name:[] for name in problem['names']},
+                    model_reporters=model_reporters)
+
+count = 0
+data_global = pd.DataFrame(index=range(replicates_global*len(param_values)),
+                                columns= problem['names'])
+data_global['Run'], data_global['Bribe'], data_global['NoBribe'] = None, None, None
+
+for i in range(replicates_global):
+    for vals in param_values:
+        # Change parameters that should be integers
+        vals = list(vals)
+        vals[2] = int(vals[2])
+        # Transform to dict with parameter names and their values
+        variable_parameters = {}
+        for name, val in zip(problem['names'], vals):
+            variable_parameters[name] = val
+
+        batch_global.run_iteration(variable_parameters, tuple(vals), count)
+        iteration_data = batch_global.get_model_vars_dataframe().iloc[count]
+        iteration_data['Run'] = count
+        data_global.iloc[count, 0:6] = vals
+        data_global.iloc[count, 6:9] = iteration_data
+        count += 1
+
+        print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
+
+Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, print_to_console=True)
+Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, print_to_console=True)
 
