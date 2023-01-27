@@ -1,16 +1,15 @@
 # We define our variables and bounds
 from model import *
 from agents import *
-from mesa.batchrunner import BatchRunner
+from mesa.batchrunner import BatchRunner, FixedBatchRunner
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from statsmodels.distributions.mixture_rvs import mixture_rvs
+
+
 
 #random comment
-
-
-import kostas
-
-
 
 problem = {
     'num_vars': 6,
@@ -22,7 +21,7 @@ problem = {
 # Set the repetitions, the amount of steps, and the amount of distinct values per variable
 replicates = 2
 max_steps = 130
-distinct_samples = 10
+distinct_samples = 3
 
 # Set the outputs
 model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/m.number_of_citizens,
@@ -36,19 +35,17 @@ for i, var in enumerate(problem['names']):
 
     # Keep in mind that wolf_gain_from_food should be integers. You will have to change
     # your code to acommodate for this or sample in such a way that you only get integers.
-    #if var == 'wolf_gain_from_food':
-     #   samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
 
-    batch = BatchRunner(CopCitizen,
-                        max_steps=max_steps,
-                        iterations=replicates,
-                        variable_parameters={var: samples},
-                        model_reporters=model_reporters,
-                        display_progress=True)
 
-    batch.run_all()
-
-    data[var] = batch.get_model_vars_dataframe()
+    # batch = BatchRunner(CopCitizen,
+    #                     max_steps=max_steps,
+    #                     iterations=replicates,
+    #                     variable_parameters={var: samples},
+    #                     model_reporters=model_reporters,
+    #                     display_progress=True)
+    #
+    # batch.run_all()
+    # data[var] = batch.get_model_vars_dataframe()
 
 
 def plot_param_var_conf(ax, df, var, param, i):
@@ -90,6 +87,54 @@ def plot_all_vars(df, param):
         plot_param_var_conf(axs[i], data[var], var, param, i)
 
 
-for param in ('Bribing', 'NoBribing'):
-    plot_all_vars(data, param)
+# for param in ('Bribing', 'NoBribing'):
+#     plot_all_vars(data, param)
+#     plt.show()
+#RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
+data_fixed = {}
+
+batch_fixed = FixedBatchRunner(CopCitizen,
+                               parameters_list=[
+                                   {'prob_prosecution': 0.9, 'cost_of_complaining': 0.6, 'cost_of_silence': 20,
+                                    'reward_citizen': 2, 'penalty_citizen':10,'penalty_cop':60}],
+                               iterations=200,
+                               max_steps=max_steps,
+                               model_reporters=model_reporters)
+batch_fixed.run_all()
+
+data_fixed = batch_fixed.get_model_vars_dataframe()
+amount_bribe = data_fixed["Bribing"].values
+amount_nobribe = data_fixed["NoBribing"].values
+
+def plot_dist(data, data_name):
+    fig = plt.figure(figsize=(12, 5))
+    ax = fig.add_subplot(111)
+
+    # Plot the histogram
+    ax.hist(
+    data,
+    bins=20,
+    density=True,
+    label="Histogram from samples",
+    zorder=5,
+    edgecolor="k",
+    alpha=0.5,
+    )
+
+    kde = sm.nonparametric.KDEUnivariate(data)
+    kde.fit()  # Estimate the densities
+
+    # Plot the KDE as fitted using the default arguments
+    ax.plot(kde.support, kde.density, lw=3, label="KDE from samples", zorder=10)
+
+    ax.set_ylabel('Density')
+    ax.set_xlabel(data_name)
+    ax.legend(loc="best")
+    ax.grid(True, zorder=-5)
     plt.show()
+
+for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
+    plot_dist(data, label)
+
+
+
