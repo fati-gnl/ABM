@@ -83,29 +83,17 @@ class Citizen(PayoffAgent):
 
         # depending on the choices different payoff is assigned
         if cop.action == "bribe":
-            self.do_action()
+            payoff_matrix = {}
 
-            # bribe
-            if self.action == "accept_and_complain":
-
-                self.payoffs[self.action] += -cop.bribe_amount - self.model.cost_of_complaining - self.model.prob_succesful_complain * \
+            payoff_matrix["accept_and_complain"] = -cop.bribe_amount - self.model.cost_of_complaining - self.model.prob_succesful_complain * \
                                              (self.model.reward_citizen - self.model.penalty_citizen) - self.model.cost_of_accepting
+            payoff_matrix["accept_and_silent"] = -cop.bribe_amount - self.model.cost_of_silence - self.model.cost_of_accepting
+            payoff_matrix["reject_and_complain"] = -cop.fine - self.model.cost_of_complaining - self.model.prob_succesful_complain * self.reward
+            payoff_matrix["reject_and_silent"] = -cop.fine - self.model.cost_of_silence
 
-            elif self.action == "accept_and_silent":
+            payoffs = payoff_matrix.values()
+            payoff_probabilities = np.argmax(self.softmax(payoffs))
 
-                # accept_and_silent
-                self.payoffs[self.action] += - cop.bribe - self.model.cost_of_silence
-                cop.payoffs[cop.action] += cop.bribe
-            elif self.action == Actions.get_actions(Citizen)[2]:
-                # reject_and_complain
-                self.payoffs[self.action] += -self.model.cost_of_complaining + self.model.prob_prosecution * (
-                    self.model.reward_citizen)
-                cop.payoffs[cop.action] += self.model.prob_prosecution * self.model.penalty_cop
-            elif self.action == Actions.get_actions(Citizen)[3]:
-                # reject_and_silent
-                self.payoffs[self.action] += -cop.fine - self.model.cost_of_silence
-
-                # cop.payoffs[cop.action] += 0
         else:
             pass
 
