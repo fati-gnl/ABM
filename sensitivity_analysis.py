@@ -139,7 +139,7 @@ def plot_dist(data, data_name):
 
 
 #Global Sensitivity Analysis
-replicates_global = 3
+replicates_global = 10
 max_steps_global = 100
 distinct_samples_global = 10
 
@@ -175,6 +175,41 @@ for i in range(replicates_global):
 
         print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
 
-Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, print_to_console=True)
-Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, print_to_console=True)
+Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
+Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
 
+def plot_index(s, params, i, title=''):
+    """
+    Creates a plot for Sobol sensitivity analysis that shows the contributions
+    of each parameter to the global sensitivity.
+
+    Args:
+        s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
+            the values for a set of parameters
+        params (list): the parameters taken from s
+        i (str): string that indicates what order the sensitivity is.
+        title (str): title for the plot
+    """
+
+
+    indices = s['S' + i]
+    errors = s['S' + i + '_conf']
+    plt.figure()
+
+    l = len(indices)
+
+    plt.title(title)
+    plt.ylim([-0.2, len(indices) - 1 + 0.2])
+    plt.yticks(range(l), params)
+    plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
+    plt.axvline(0, c='k')
+
+
+for Si in (Si_bribe, Si_nobribe):
+    # First order
+    plot_index(Si, problem['names'], '1', 'First order sensitivity')
+    plt.show()
+
+    # Total order
+    plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
+    plt.show()
