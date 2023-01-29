@@ -5,6 +5,7 @@ import numpy.random
 from mesa import Agent
 import random
 
+
 class Functions:
 
     def softmax(self, x, lambda_):
@@ -89,6 +90,7 @@ class Cop(Agent, Functions):
         self.action = None
         self.bribe_amount_mean = bribe_amount_mean
         self.bribe_amount_std = bribe_amount_std
+        self.risk_aversion = np.random.uniform(0., 1.)
 
         self.id_act = {0: "bribe", 1: "not_bribe"}
 
@@ -132,7 +134,7 @@ class Cop(Agent, Functions):
         approx_prob_caught = self.approximate_prob_caught()
         approx_prob_accept = self.approximate_prob_accept()
 
-        utility_bribe = (1 - approx_prob_caught) * (approx_prob_accept * self.bribe_amount)
+        utility_bribe = (1 - approx_prob_caught) * (approx_prob_accept * (1-self.risk_aversion)*self.bribe_amount)
         utility_not_bribe = approx_prob_caught * self.model.jail_time
 
         utilities = np.array([utility_bribe, utility_not_bribe])
