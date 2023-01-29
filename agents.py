@@ -1,4 +1,4 @@
-from typing import List, Type
+from typing import List, Type, Tuple
 
 import numpy as np
 import numpy.random
@@ -23,32 +23,29 @@ class Citizen(Agent, Functions):
     def __init__(self,
                  unique_id,
                  model,
-                 lambda_,
-                 complain_reward,
-                 fine_amount,
-                 memory_size,
-                 cost_accept_mean,
-                 cost_accept_std,
-                 cost_silence_mean,
-                 cost_silence_std,
-                 penalty):
+                 cost_accept_mean_std: Tuple[float, float],
+                 cost_silence_mean_std: Tuple[float, float],
+                 prone_to_complain: float,
+                 complain_memory_discount_factor: float,
+                 first_action: str = None,
+                 ):
         super().__init__(unique_id, model)
 
-        self.action = None
+        self.action = first_action
         self.cost_complain = self.model.cost_complain
-        self.cost_accept = np.random.normal(loc=cost_accept_mean, scale=cost_accept_std)
-        self.cost_silence = np.random.normal(loc=cost_silence_mean, scale=cost_silence_std)
-        self.complain_reward = complain_reward
-        self.lambda_ = lambda_
-        self.fine_amount = fine_amount
-        self.penalty_citizen_prosecution = penalty
 
+        self.lambda_ = self.model.lambda_
+        self.fine_amount = self.model.fine_amount
+        self.penalty_citizen_prosecution = self.model.penalty_citizen_prosecution
 
-        # Initialize memory
+        self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
+        self.cost_silence = np.random.normal(loc=cost_silence_mean_std[0], scale=cost_silence_mean_std[1])
+
+        # Initialize memory, complain_memory ==0.5 means that the beginning state is being indifferent
         self.complain_memory_len = 1
-        self.complain_memory = 0.5
+        self.complain_memory = prone_to_complain
         # 0 is easily forgetting, 1 all events important the same
-        self.discount_factor = 0.5
+        self.discount_factor = complain_memory_discount_factor
 
         # Hello,
         self.id_act = {0: "accept_complain",
@@ -57,11 +54,12 @@ class Citizen(Agent, Functions):
                        3: "reject_silent"}
 
     def do_action(self, bribe_amount):
+        # complain_reward = bribe to make the # of params smaller
         prob_success_complain = self.approximate_prob_succesful_complain()
         utility_accept_complain = -bribe_amount - self.cost_complain + prob_success_complain * (
                 -self.penalty_citizen_prosecution + bribe_amount) - self.cost_accept
         utility_accept_silent = -bribe_amount - self.cost_silence - self.cost_accept
-        utility_reject_complain = -self.fine_amount - self.cost_complain - prob_success_complain * self.complain_reward
+        utility_reject_complain = -self.fine_amount - self.cost_complain
         utility_reject_silent = -self.fine_amount - self.cost_silence
 
         utilities = np.array([utility_accept_complain,
@@ -71,7 +69,6 @@ class Citizen(Agent, Functions):
 
         self.action = self.sample_action(utilities, self.id_act, self.lambda_)
 
-
     def step(self):
         self.action = None
 
@@ -79,23 +76,37 @@ class Citizen(Agent, Functions):
         return self.complain_memory
 
     def update_succesful_complain_memory(self, update):
-        self.complain_memory_len+=1
-        self.complain_memory+=self.discount_factor*(self.complain_memory*self.complain_memory_len*(self.complain_memory_len-1))+ update/ self.complain_memory_len
+        self.complain_memory_len += 1
+        self.complain_memory += self.discount_factor * (self.complain_memory * self.complain_memory_len * (
+                self.complain_memory_len - 1)) + update / self.complain_memory_len
 
 
 class Cop(Agent, Functions):
-    def __init__(self, unique_id, model, in_jail, lambda_, memory_size, bribe_amount_mean, bribe_amount_std, moral_commitment_mean, moral_commitment_std, jail_cost):
+    def __init__(self, unique_id,
+                 model,
+                 in_jail,
+                 lambda_: float,
+                 accepted_bribe_memory_size: int,
+                 bribe_amount_mean_std: Tuple[float, float],
+                 moral_commitment_mean_std: Tuple[float, float],
+                 jail_cost: float,
+                 first_action: str = None,
+                 accepted_bribe_memory_initial: float = 0.5):
         super().__init__(unique_id, model)
 
+        self.action = first_action
+
         self.in_jail = in_jail
+
         self.lambda_ = lambda_
-        self.accepted_bribe_memory_size = memory_size
-        self.accepted_bribe_memory = [0.5] * self.accepted_bribe_memory_size
-        self.action = None
-        self.bribe_amount_mean = bribe_amount_mean
-        self.bribe_amount_std = bribe_amount_std
+        self.accepted_bribe_memory_size = accepted_bribe_memory_size
+        self.accepted_bribe_memory = [accepted_bribe_memory_initial] * self.accepted_bribe_memory_size
+
+        self.bribe_amount_mean_std = bribe_amount_mean_std
+
+        # How much the cop is against taking risks. 0 - likes risk a lot, 1. - doesnt like risk at all
         self.risk_aversion = np.random.uniform(0., 1.)
-        self.moral_commitment = np.random.normal(loc=moral_commitment_mean, scale=moral_commitment_std)
+        self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
         self.jail_cost = jail_cost
 
         self.id_act = {0: "bribe", 1: "not_bribe"}
@@ -116,13 +127,15 @@ class Cop(Agent, Functions):
 
                 # If the citizen complains, give the cop a jail time based on the ground truth of the probability of getting caught
                 if "complain" in citizen.action:
-                    cop_goes_to_jail = np.random.multinomial(1, [self.model.prob_caught, 1 - self.model.prob_caught])[0]
-                    if cop_goes_to_jail>0.5:
+                    cop_goes_to_jail = \
+                        np.random.multinomial(1, [self.model.prob_of_prosecution, 1 - self.model.prob_of_prosecution])[
+                            0]
+                    if cop_goes_to_jail == 1:
                         # complain succesful
                         self.in_jail = self.model.jail_time
                         citizen.update_succesful_complain_memory(1)
                     else:
-                        # complain failed, citizen remebers that
+                        # complain failed, citizen remembers that
                         citizen.update_succesful_complain_memory(0)
                 # If the citizen accepts to bribe, update this in the memory for the cop
                 if "accept" in citizen.action:
@@ -138,27 +151,30 @@ class Cop(Agent, Functions):
             self.in_jail -= 1
 
     def validate_play(self):
-        play = True if self in self.model.cops_playing else False
-        return play
+        '''
+        Checks if the cop is allowed to play. They are allowed if they're not in jail. This is checked in model
+        :return:True if allowed to play
+        '''
+        return True if self in self.model.cops_playing else False
 
     def do_action(self):
         '''
         Cop is making an action based on utilities. The sampled action is then saved in the self.action field.
         '''
         # Draw the bribe amount from the normal distribution
-        self.bribe_amount = np.random.normal(loc=self.bribe_amount_mean, scale=self.bribe_amount_std)
+        self.bribe_amount = np.random.normal(loc=self.bribe_amount_mean_std[0], scale=self.bribe_amount_mean_std[1])
 
         approx_prob_caught = self.approximate_prob_caught()
         approx_prob_accept = self.approximate_prob_accept()
 
         # Calculate expected utilities for each action
-        utility_bribe = (1 - approx_prob_caught) * (approx_prob_accept * (1 - self.risk_aversion) * self.bribe_amount) - approx_prob_caught * self.jail_cost
+        utility_bribe = (1 - approx_prob_caught) * (approx_prob_accept * (
+                1 - self.risk_aversion) * self.bribe_amount) - approx_prob_caught * self.jail_cost
         utility_not_bribe = self.moral_commitment
 
         utilities = np.array([utility_bribe, utility_not_bribe])
 
         self.action = self.sample_action(utilities, self.id_act, self.lambda_)
-
 
     def approximate_prob_accept(self):
         return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size

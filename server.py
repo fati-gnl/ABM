@@ -5,6 +5,7 @@ from mesa.visualization.modules import ChartModule
 from model import *
 from agents import Cop, Citizen
 
+
 # Create a Potrayal
 def agent_portrayal(agent):
     portrayal = {"Shape": "circle",
@@ -14,42 +15,43 @@ def agent_portrayal(agent):
                  "r": 0.5}
     return portrayal
 
+
 # Create a dynamic linegraph
 chart4 = ChartModule([{"Label": "Bribing",
-                     "Color": "green"}],
-                  data_collector_name='datacollector')
+                       "Color": "green"}],
+                     data_collector_name='datacollector')
 
 chart5 = ChartModule([{"Label": "AcceptComplain",
-                      "Color": "blue"},
+                       "Color": "blue"},
                       {"Label": "Reject_Complain",
-                      "Color": "red"},
+                       "Color": "red"},
                       {"Label": "Accept_Silent",
-                      "Color": "green"},
-                      {"Label": "Reject_Silent",
-                      "Color": "yellow"}],
-                    data_collector_name='datacollector')
-
-#chart3 = ChartModule([{"Label": "Citizens",
-                      #"Color": "blue"},{"Label": "Cops",
-                      #"Color": "red"}],
-                    #data_collector_name='datacollector')
-chart = ChartModule([{"Label": "Citizens",
                        "Color": "green"},
-                       {"Label": "Cops",
-                       "Color": "blue"}],
+                      {"Label": "Reject_Silent",
+                       "Color": "yellow"}],
                      data_collector_name='datacollector')
+
+# chart3 = ChartModule([{"Label": "Citizens",
+# "Color": "blue"},{"Label": "Cops",
+# "Color": "red"}],
+# data_collector_name='datacollector')
+chart = ChartModule([{"Label": "Citizens",
+                      "Color": "green"},
+                     {"Label": "Cops",
+                      "Color": "blue"}],
+                    data_collector_name='datacollector')
 
 chart2 = ChartModule([{"Label": "Prision Count",
                        "Color": "red"}],
                      data_collector_name='datacollector')
 
 chart_complain = ChartModule([{"Label": "Total Complain",
-                       "Color": "red"}],
-                     data_collector_name='datacollector')
+                               "Color": "red"}],
+                             data_collector_name='datacollector')
 
 chart_accept = ChartModule([{"Label": "Total Accept",
-                       "Color": "green"}],
-                     data_collector_name='datacollector')
+                             "Color": "green"}],
+                           data_collector_name='datacollector')
 
 # Create the server, and pass the grid and the graph
 server = ModularServer(Corruption,
