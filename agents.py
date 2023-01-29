@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Type, Tuple
 
 import numpy as np
@@ -6,20 +7,36 @@ from mesa import Agent
 import random
 
 
-class Functions:
-
-    def softmax(self, x, lambda_):
-        x = x * lambda_
-        e_x = np.exp(x - np.max(x))
-        return e_x / e_x.sum(axis=0)
-
-    def sample_action(self, utilities, id_act, lambda_):
-        distribution = self.softmax(utilities, lambda_)
-        action = id_act[np.argmax(np.random.multinomial(1, distribution))]
-        return action
+def softmax(x, lambda_):
+    x = x * lambda_
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0)
 
 
-class Citizen(Agent, Functions):
+def sample_action(utilities, id_act, lambda_):
+    distribution = softmax(utilities, lambda_)
+    action = id_act(np.argmax(np.random.multinomial(1, distribution)))
+    return action
+
+
+# citizen_actions = {0: "accept_complain",
+#                    1: "accept_silent",
+#                    2: "reject_complain",
+#                    3: "reject_silent"}
+# cop_actions= {0: "bribe", 1: "not_bribe"}
+class CitizenActions(Enum):
+    accept_complain = 0
+    accept_silent = 1
+    reject_complain = 2
+    reject_silent = 3
+
+
+class CopActions(Enum):
+    bribe = 0
+    not_bribe = 1
+
+
+class Citizen(Agent):
     def __init__(self,
                  unique_id,
                  model,
@@ -27,17 +44,19 @@ class Citizen(Agent, Functions):
                  cost_silence_mean_std: Tuple[float, float],
                  prone_to_complain: float,
                  complain_memory_discount_factor: float,
-                 first_action: str = None,
+                 first_action: str = None
                  ):
         super().__init__(unique_id, model)
 
         self.action = first_action
-        self.cost_complain = self.model.cost_complain
 
+        # params that are set in the model/from outside
+        self.cost_complain = self.model.cost_complain
         self.lambda_ = self.model.lambda_
         self.fine_amount = self.model.fine_amount
         self.penalty_citizen_prosecution = self.model.penalty_citizen_prosecution
 
+        # initialize moral costs
         self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
         self.cost_silence = np.random.normal(loc=cost_silence_mean_std[0], scale=cost_silence_mean_std[1])
 
@@ -47,15 +66,11 @@ class Citizen(Agent, Functions):
         # 0 is easily forgetting, 1 all events important the same
         self.discount_factor = complain_memory_discount_factor
 
-        # Hello,
-        self.id_act = {0: "accept_complain",
-                       1: "accept_silent",
-                       2: "reject_complain",
-                       3: "reject_silent"}
+        self.id_act = CitizenActions
 
     def do_action(self, bribe_amount):
         # complain_reward = bribe to make the # of params smaller
-        prob_success_complain = self.approximate_prob_succesful_complain()
+        prob_success_complain = self.approximate_prob_successful_complain()
         utility_accept_complain = -bribe_amount - self.cost_complain + prob_success_complain * (
                 -self.penalty_citizen_prosecution + bribe_amount) - self.cost_accept
         utility_accept_silent = -bribe_amount - self.cost_silence - self.cost_accept
@@ -67,12 +82,12 @@ class Citizen(Agent, Functions):
                               utility_reject_complain,
                               utility_reject_silent])
 
-        self.action = self.sample_action(utilities, self.id_act, self.lambda_)
+        self.action = sample_action(utilities, self.id_act, self.lambda_)
 
     def step(self):
         self.action = None
 
-    def approximate_prob_succesful_complain(self):
+    def approximate_prob_successful_complain(self):
         return self.complain_memory
 
     def update_succesful_complain_memory(self, update):
@@ -81,24 +96,22 @@ class Citizen(Agent, Functions):
                 self.complain_memory_len - 1)) + update / self.complain_memory_len
 
 
-class Cop(Agent, Functions):
+class Cop(Agent):
     def __init__(self, unique_id,
                  model,
-                 in_jail,
-                 lambda_: float,
+                 time_left_in_jail: int,
                  accepted_bribe_memory_size: int,
                  bribe_amount_mean_std: Tuple[float, float],
                  moral_commitment_mean_std: Tuple[float, float],
-                 jail_cost: float,
                  first_action: str = None,
                  accepted_bribe_memory_initial: float = 0.5):
         super().__init__(unique_id, model)
 
         self.action = first_action
+        self.jail_cost = self.model.jail_cost
+        self.lambda_ = self.model.lambda_
 
-        self.in_jail = in_jail
-
-        self.lambda_ = lambda_
+        self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
         self.accepted_bribe_memory = [accepted_bribe_memory_initial] * self.accepted_bribe_memory_size
 
@@ -107,9 +120,8 @@ class Cop(Agent, Functions):
         # How much the cop is against taking risks. 0 - likes risk a lot, 1. - doesnt like risk at all
         self.risk_aversion = np.random.uniform(0., 1.)
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
-        self.jail_cost = jail_cost
 
-        self.id_act = {0: "bribe", 1: "not_bribe"}
+        self.id_act = CopActions
 
     def step(self):
         self.action = None
@@ -122,33 +134,32 @@ class Cop(Agent, Functions):
             citizen = self.model.get_citizen()
 
             # If the cop bribes, sample an action for the citizen
-            if self.action == "bribe":
+            if self.action == CopActions.bribe:
                 citizen.do_action(self.bribe_amount)
 
                 # If the citizen complains, give the cop a jail time based on the ground truth of the probability of getting caught
-                if "complain" in citizen.action:
-                    cop_goes_to_jail = \
-                        np.random.multinomial(1, [self.model.prob_of_prosecution, 1 - self.model.prob_of_prosecution])[
-                            0]
-                    if cop_goes_to_jail == 1:
-                        # complain succesful
-                        self.in_jail = self.model.jail_time
+                if citizen.action in [CitizenActions.accept_complain, CitizenActions.reject_complain]:
+                    if np.random.multinomial(1,
+                                             [self.model.prob_of_prosecution,
+                                              1 - self.model.prob_of_prosecution])[0] == 1:
+                        # complain succesful -> cop goes to jail
+                        self.time_left_in_jail = self.model.jail_time
                         citizen.update_succesful_complain_memory(1)
                     else:
                         # complain failed, citizen remembers that
                         citizen.update_succesful_complain_memory(0)
                 # If the citizen accepts to bribe, update this in the memory for the cop
-                if "accept" in citizen.action:
+                if citizen.action in [CitizenActions.accept_complain, CitizenActions.accept_silent]:
                     self.update_accepting_bribe_memory(1)
 
                 # If the citizen rejects to bribe, update this in the memory for the cop
-                if "reject" in citizen.action:
+                if citizen.action in [CitizenActions.reject_complain, CitizenActions.reject_silent]:
                     self.update_accepting_bribe_memory(0)
 
 
         # If the cop cannot play, check whether the cop is in jail and if the cop is in jail, reduce their sentence by 1
-        elif self.in_jail > 0:
-            self.in_jail -= 1
+        elif self.time_left_in_jail > 0:
+            self.time_left_in_jail -= 1
 
     def validate_play(self):
         '''
@@ -174,10 +185,7 @@ class Cop(Agent, Functions):
 
         utilities = np.array([utility_bribe, utility_not_bribe])
 
-        self.action = self.sample_action(utilities, self.id_act, self.lambda_)
-
-    def approximate_prob_accept(self):
-        return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
+        self.action = sample_action(utilities, self.id_act, self.lambda_)
 
     def approximate_prob_caught(self):
         '''
@@ -192,3 +200,6 @@ class Cop(Agent, Functions):
     def update_accepting_bribe_memory(self, update):
         self.accepted_bribe_memory.pop(0)
         self.accepted_bribe_memory.append(update)
+
+    def approximate_prob_accept(self):
+        return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size

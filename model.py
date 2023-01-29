@@ -6,7 +6,7 @@ from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler
 
-from agents import Citizen, Cop
+from agents import Citizen, Cop, CitizenActions, CopActions
 
 
 class Corruption(Model):
@@ -18,19 +18,24 @@ class Corruption(Model):
                  jail_time=2,
                  prob_of_prosecution=0.5,
                  memory_size=5,
-                 fine_amount=10,  # don't change this in sensitivity analysis
+                 fine_amount=1,  # don't change this in sensitivity analysis
                  cost_complain=4,
                  penalty_citizen_prosecution=0.):
         super().__init__()
 
         self.team_size = team_size
+        # how many iterations cop is inactive
         self.jail_time = jail_time
+        # actual cost that cop takes into consideration in the utility function
+        # they should somehow relate to each other I think, but don't know how exactly
+        self.jail_cost = 1. *jail_time
         self.prob_of_prosecution = prob_of_prosecution
         self.memory_size = memory_size
         self.cost_complain = cost_complain
         self.penalty_citizen_prosecution = penalty_citizen_prosecution
         self.fine_amount = fine_amount
         self.lambda_ = lambda_
+
 
         # Initialise schedulers
         self.schedule_Citizen = BaseScheduler(self)
@@ -49,12 +54,10 @@ class Corruption(Model):
         for i in range(num_cops):
             cop = Cop(i,
                       self,
-                      in_jail=0,
-                      lambda_=lambda_,
+                      time_left_in_jail=0,
                       accepted_bribe_memory_size=memory_size,
                       bribe_amount_mean_std=(0.5, 0.1),
-                      moral_commitment_mean_std=(0.5, 0.1),
-                      jail_cost=2)
+                      moral_commitment_mean_std=(0.5, 0.1))
             self.schedule_Cop.add(cop)
 
         self.cops_playing = [cop for cop in self.schedule_Cop.agents]
@@ -62,30 +65,30 @@ class Corruption(Model):
         # Data collector to be able to save the data
         self.datacollector = DataCollector(
             {"Prision Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
-                                             cop.in_jail > 0]) / self.schedule_Cop.get_agent_count(),
+                                             cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
-                                       cop.action == "bribe"]) / num_cops,
+                                       cop.action == CopActions.bribe]) / num_cops,
              "AcceptComplain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                              cit.action == "accept_complain"]) / num_cops,
+                                              cit.action == CitizenActions.accept_complain]) / num_cops,
              "Reject_Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                               cit.action == "reject_complain"]) / num_cops,
+                                               cit.action ==  CitizenActions.reject_complain]) / num_cops,
              "Accept_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                             cit.action == "accept_silent"]) / num_cops,
+                                             cit.action == CitizenActions.accept_silent]) / num_cops,
              "Reject_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                             cit.action == "reject_silent"]) / num_cops,
+                                             cit.action == CitizenActions.reject_silent]) / num_cops,
              "Total Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                               (
-                                                      cit.action == "accept_complain" or cit.action == "reject_complain")]) / num_cops,
+                                                      cit.action == CitizenActions.accept_complain or cit.action ==CitizenActions.reject_complain)]) / num_cops,
              "Total Accept": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                             (
-                                                    cit.action == "accept_complain" or cit.action == "accept_silent")]) / num_cops,
+                                                    cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent)]) / num_cops,
              })
 
         # Divide the cops over a network of teams
         self.create_network()
 
     def step(self):
-        self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.in_jail == 0]
+        self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.time_left_in_jail == 0]
         self.citizens_playing = random.sample(self.schedule_Citizen.agents, len(self.cops_playing))
 
         self.schedule_Citizen.step()
@@ -122,4 +125,4 @@ class Corruption(Model):
         # Update the #cops in jail for each team
         for cop in self.schedule_Cop.agents:
             team = self.id_team[cop.unique_id]
-            self.team_jailed[team] += 1 if cop.in_jail > 0 else 0
+            self.team_jailed[team] += 1 if cop.time_left_in_jail > 0 else 0
