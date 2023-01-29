@@ -16,13 +16,17 @@ def agent_portrayal(agent):
 
 # Create a dynamic linegraph
 chart4 = ChartModule([{"Label": "Bribing",
-                     "Color": "green"}, {"Label": "NoBribing",
-                     "Color": "yellow"}],
+                     "Color": "green"}],
                   data_collector_name='datacollector')
 
-chart5 = ChartModule([{"Label": "ComplainRate",
-                      "Color": "blue"},{"Label": "NoComplainRate",
-                      "Color": "red"}],
+chart5 = ChartModule([{"Label": "AcceptComplain",
+                      "Color": "blue"},
+                      {"Label": "Reject_Complain",
+                      "Color": "red"},
+                      {"Label": "Accept_Silent",
+                      "Color": "green"},
+                      {"Label": "Reject_Silent",
+                      "Color": "yellow"}],
                     data_collector_name='datacollector')
 
 #chart3 = ChartModule([{"Label": "Citizens",
@@ -35,13 +39,21 @@ chart = ChartModule([{"Label": "Citizens",
                        "Color": "blue"}],
                      data_collector_name='datacollector')
 
-chart2 = ChartModule([{"Label": "Available Cops",
+chart2 = ChartModule([{"Label": "Prision Count",
+                       "Color": "red"}],
+                     data_collector_name='datacollector')
+
+chart_complain = ChartModule([{"Label": "Total Complain",
+                       "Color": "red"}],
+                     data_collector_name='datacollector')
+
+chart_accept = ChartModule([{"Label": "Total Accept",
                        "Color": "green"}],
                      data_collector_name='datacollector')
 
 # Create the server, and pass the grid and the graph
 server = ModularServer(Corruption,
-                       [chart2, chart4, chart5],
+                       [chart2, chart4, chart5, chart_complain, chart_accept],
                        "CopCitizen Model",
                        {})
 

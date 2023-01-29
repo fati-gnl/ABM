@@ -19,9 +19,9 @@ class Corruption(Model):
                  memory_size=5,
                  bribe_amount=5,
                  fine_amount=10,  # dont change this in sensitivity analysis
-                 cost_complain=1,
+                 cost_complain=4,
                  cost_accept=1,
-                 cost_silence=1,
+                 cost_silence=0,
                  prob_success_complain=1,  # remove this
                  complain_reward=1):
 
@@ -67,15 +67,22 @@ class Corruption(Model):
 
         # Data collector to be able to save the data
         self.datacollector = DataCollector(
-            {"Available Cops": lambda m: len(self.cops_playing),
+            {"Prision Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
+                                             cop.in_jail > 0])/self.schedule_Cop.get_agent_count(),
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
                                        cop.action == "bribe"]) / num_cops,
-             "NoBribing": lambda m: sum([1 for cop in self.cops_playing if
-                                       cop.action == "not_bribe"]) / num_cops,
-             "ComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
-                         cit.action == "accept_complain" or cit.action == "reject_complain")]) / num_cops,
-             "NoComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
-                         cit.action == "accept_silent" or cit.action == "reject_silent")]) / num_cops,
+             "AcceptComplain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                              cit.action == "accept_complain"]) / num_cops,
+             "Reject_Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                               cit.action == "reject_complain"]) / num_cops,
+             "Accept_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                             cit.action == "accept_silent"]) / num_cops,
+             "Reject_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                             cit.action == "reject_silent"]) / num_cops,
+             "Total Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                              (cit.action == "accept_complain" or cit.action == "reject_complain")]) / num_cops,
+             "Total Accept": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+                                            (cit.action == "accept_complain" or cit.action == "accept_silent")]) / num_cops,
             })
 
         # Divide the cops over a network of teams
