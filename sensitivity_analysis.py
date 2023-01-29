@@ -1,4 +1,3 @@
-# We define our variables and bounds
 from model import *
 from agents import *
 from mesa.batchrunner import BatchRunner, FixedBatchRunner
@@ -8,7 +7,7 @@ import statsmodels.api as sm
 from SALib.sample import saltelli
 from SALib.analyze import sobol
 import pandas as pd
-
+plt.style.use('ggplot')
 
 #Local Sensitivity Analysis
 
@@ -49,7 +48,7 @@ for i, var in enumerate(problem['names']):
     # data[var] = batch.get_model_vars_dataframe()
 
 
-def plot_param_var_conf(ax, df, var, param, i):
+def plot_param_var_conf(df, var, param, i):
     """
     Helper function for plot_all_vars. Plots the individual parameter vs
     variables passed.
@@ -66,12 +65,12 @@ def plot_param_var_conf(ax, df, var, param, i):
     replicates = df.groupby(var)[param].count()
     err = (1.96 * df.groupby(var)[param].std()) / np.sqrt(replicates)
 
-    ax.plot(x, y, c='k')
-    ax.fill_between(x, y - err, y + err)
+    plt.plot(x, y, c='k')
+    plt.plot(x, y, '.', color='blue')
+    plt.fill_between(x, y - err, y + err, alpha=0.5)
 
-    ax.set_xlabel(var)
-    ax.set_ylabel(param)
-
+    plt.xlabel(var)
+    plt.ylabel(param)
 
 def plot_all_vars(df, param):
     """
@@ -82,134 +81,139 @@ def plot_all_vars(df, param):
         param: the parameter to be plotted
     """
 
-    f, axs = plt.subplots(6, figsize=(7, 10))
-    plt.subplots_adjust(hspace=0.9)
     for i, var in enumerate(problem['names']):
-        plot_param_var_conf(axs[i], data[var], var, param, i)
+        plt.figure(figsize=(6.5,3.5))
+        plot_param_var_conf(data[var], var, param, i)
 
 
 # for param in ('Bribing', 'NoBribing'):
 #     plot_all_vars(data, param)
 #     plt.show()
+
 #RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
-# data_fixed = {}
-#
-# batch_fixed = FixedBatchRunner(CopCitizen,
-#                                parameters_list=[
-#                                    {'prob_prosecution': 0.9, 'cost_of_complaining': 0.6, 'cost_of_silence': 20,
-#                                     'reward_citizen': 2, 'penalty_citizen':10,'penalty_cop':60}],
-#                                iterations=200,
-#                                max_steps=max_steps,
-#                                model_reporters=model_reporters)
-# batch_fixed.run_all()
-#
-# data_fixed = batch_fixed.get_model_vars_dataframe()
-# amount_bribe = data_fixed["Bribing"].values
-# amount_nobribe = data_fixed["NoBribing"].values
+def model_baseline_output(prob_prosecution, cost_of_complaining, cost_of_silence, reward_citizen, penalty_citizen, penalty_cop, max_steps, model_reporters):
 
-def plot_dist(data, data_name):
-    fig = plt.figure(figsize=(12, 5))
-    ax = fig.add_subplot(111)
+    data_fixed = {}
 
-    # Plot the histogram
-    ax.hist(
-    data,
-    bins=20,
-    density=True,
-    label="Histogram from samples",
-    zorder=5,
-    edgecolor="k",
-    alpha=0.5,
-    )
+    batch_fixed = FixedBatchRunner(CopCitizen,
+                                   parameters_list=[
+                                       {'prob_prosecution': prob_prosecution, 'cost_of_complaining': cost_of_complaining, 'cost_of_silence': cost_of_silence,
+                                        'reward_citizen': reward_citizen, 'penalty_citizen':penalty_citizen,'penalty_cop':penalty_cop}],
+                                   iterations=100,
+                                   max_steps=max_steps,
+                                   model_reporters=model_reporters)
+    batch_fixed.run_all()
 
-    kde = sm.nonparametric.KDEUnivariate(data)
-    kde.fit()  # Estimate the densities
+    data_fixed = batch_fixed.get_model_vars_dataframe()
+    amount_bribe = data_fixed["Bribing"].values
+    amount_nobribe = data_fixed["NoBribing"].values
 
-    # Plot the KDE as fitted using the default arguments
-    ax.plot(kde.support, kde.density, lw=3, label="KDE from samples", zorder=10)
+    def plot_dist(data, data_name):
+        fig = plt.figure(figsize=(12, 5))
+        ax = fig.add_subplot(111)
 
-    ax.set_ylabel('Density')
-    ax.set_xlabel(data_name)
-    ax.legend(loc="best")
-    ax.grid(True, zorder=-5)
-    plt.show()
+        # Plot the histogram
+        ax.hist(
+        data,
+        bins=20,
+        density=False,
+        label="Histogram from samples",
+        zorder=5,
+        edgecolor="k",
+        alpha=0.5,
+        )
 
-# for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
-#     plot_dist(data, label)
+        # kde = sm.nonparametric.KDEUnivariate(data)
+        # kde.fit()  # Estimate the densities
+        #
+        # # Plot the KDE as fitted using the default arguments
+        # ax.plot(kde.support, kde.density, lw=3, label="KDE from samples", zorder=10)
+        #
+        # ax.set_ylabel('Density')
+        # ax.set_xlabel(data_name)
+        # ax.legend(loc="best")
+        # ax.grid(True, zorder=-5)
+        plt.show()
 
+    for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
+         plot_dist(data, label)
+
+
+model_baseline_output(prob_prosecution=0.7, cost_of_complaining=3, cost_of_silence=2, reward_citizen=10,
+                      penalty_citizen=7, penalty_cop=35, max_steps=max_steps, model_reporters=model_reporters)
 
 #Global Sensitivity Analysis
-replicates_global = 10
-max_steps_global = 100
-distinct_samples_global = 10
-
-# We get all our samples here
-param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
-
-batch_global = BatchRunner(CopCitizen,
-                    max_steps=max_steps_global,
-                    variable_parameters={name:[] for name in problem['names']},
-                    model_reporters=model_reporters)
-
-count = 0
-data_global = pd.DataFrame(index=range(replicates_global*len(param_values)),
-                                columns= problem['names'])
-data_global['Run'], data_global['Bribe'], data_global['NoBribe'] = None, None, None
-
-for i in range(replicates_global):
-    for vals in param_values:
-        # Change parameters that should be integers
-        vals = list(vals)
-        vals[2] = int(vals[2])
-        # Transform to dict with parameter names and their values
-        variable_parameters = {}
-        for name, val in zip(problem['names'], vals):
-            variable_parameters[name] = val
-
-        batch_global.run_iteration(variable_parameters, tuple(vals), count)
-        iteration_data = batch_global.get_model_vars_dataframe().iloc[count]
-        iteration_data['Run'] = count
-        data_global.iloc[count, 0:6] = vals
-        data_global.iloc[count, 6:9] = iteration_data
-        count += 1
-
-        print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
-
-Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
-Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
-
-def plot_index(s, params, i, title=''):
-    """
-    Creates a plot for Sobol sensitivity analysis that shows the contributions
-    of each parameter to the global sensitivity.
-
-    Args:
-        s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
-            the values for a set of parameters
-        params (list): the parameters taken from s
-        i (str): string that indicates what order the sensitivity is.
-        title (str): title for the plot
-    """
-
-
-    indices = s['S' + i]
-    errors = s['S' + i + '_conf']
-    plt.figure()
-
-    l = len(indices)
-
-    plt.title(title)
-    plt.ylim([-0.2, len(indices) - 1 + 0.2])
-    plt.yticks(range(l), params)
-    plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
-    plt.axvline(0, c='k')
-
-
-for Si in (Si_bribe, Si_nobribe):
-    # First order
-    plot_index(Si, problem['names'], '1', 'First order sensitivity')
-    plt.show()
-
-    # Total order
-    plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
-    plt.show()
+# replicates_global = 10
+# max_steps_global = 100
+# distinct_samples_global = 10
+#
+# # We get all our samples here
+# param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
+#
+# batch_global = BatchRunner(CopCitizen,
+#                     max_steps=max_steps_global,
+#                     variable_parameters={name:[] for name in problem['names']},
+#                     model_reporters=model_reporters)
+#
+# count = 0
+# data_global = pd.DataFrame(index=range(replicates_global*len(param_values)),
+#                                 columns= problem['names'])
+# data_global['Run'], data_global['Bribe'], data_global['NoBribe'] = None, None, None
+#
+# for i in range(replicates_global):
+#     for vals in param_values:
+#         # Change parameters that should be integers
+#         vals = list(vals)
+#         vals[2] = int(vals[2])
+#         # Transform to dict with parameter names and their values
+#         variable_parameters = {}
+#         for name, val in zip(problem['names'], vals):
+#             variable_parameters[name] = val
+#
+#         batch_global.run_iteration(variable_parameters, tuple(vals), count)
+#         iteration_data = batch_global.get_model_vars_dataframe().iloc[count]
+#         iteration_data['Run'] = count
+#         data_global.iloc[count, 0:6] = vals
+#         data_global.iloc[count, 6:9] = iteration_data
+#         count += 1
+#
+#         print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
+#
+# Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
+# Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
+#
+# def plot_index(s, params, i, title=''):
+#     """
+#     Creates a plot for Sobol sensitivity analysis that shows the contributions
+#     of each parameter to the global sensitivity.
+#
+#     Args:
+#         s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
+#             the values for a set of parameters
+#         params (list): the parameters taken from s
+#         i (str): string that indicates what order the sensitivity is.
+#         title (str): title for the plot
+#     """
+#
+#
+#     indices = s['S' + i]
+#     errors = s['S' + i + '_conf']
+#     plt.figure()
+#
+#     l = len(indices)
+#
+#     plt.title(title)
+#     plt.ylim([-0.2, len(indices) - 1 + 0.2])
+#     plt.yticks(range(l), params)
+#     plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
+#     plt.axvline(0, c='k')
+#
+#
+# for Si in (Si_bribe, Si_nobribe):
+#     # First order
+#     plot_index(Si, problem['names'], '1', 'First order sensitivity')
+#     plt.show()
+#
+#     # Total order
+#     plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
+#     plt.show()
