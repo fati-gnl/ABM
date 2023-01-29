@@ -44,8 +44,11 @@ class Citizen(Agent, Functions):
         self.penalty_citizen_prosecution = penalty
 
 
-        self.complain_memory_size = memory_size
-        self.complain_memory = [0.5] * self.complain_memory_size
+        # Initialize memory
+        self.complain_memory_len = 1
+        self.complain_memory = 0.5
+        # 0 is easily forgetting, 1 all events important the same
+        self.discount_factor = 0.5
 
         # Hello,
         self.id_act = {0: "accept_complain",
@@ -73,11 +76,11 @@ class Citizen(Agent, Functions):
         self.action = None
 
     def approximate_prob_succesful_complain(self):
-        return sum(self.complain_memory) / self.complain_memory_size
+        return self.complain_memory
 
     def update_succesful_complain_memory(self, update):
-        self.complain_memory.pop(0)
-        self.complain_memory.append(update)
+        self.complain_memory_len+=1
+        self.complain_memory+=self.discount_factor*(self.complain_memory*self.complain_memory_len*(self.complain_memory_len-1))+ update/ self.complain_memory_len
 
 
 class Cop(Agent, Functions):
