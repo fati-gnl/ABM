@@ -15,9 +15,9 @@ class Corruption(Model):
                  rationality_of_agents=0.8,  # 0 is random totally
                  jail_time=2,
                  prob_of_prosecution=0.5,
-                 memory_size=5,
-                 fine_amount=1,  # don't change this in sensitivity analysis
-                 cost_complain=4,
+                 memory_size=10,
+                 fine_amount=1.,  # don't change this in sensitivity analysis
+                 cost_complain=0.4,
                  penalty_citizen_prosecution=0.,
                  jail_cost_factor=1.,
                  # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
@@ -67,27 +67,27 @@ class Corruption(Model):
                       moral_commitment_mean_std=moral_commitment_mean_std)
             self.schedule_Cop.add(cop)
 
-
         # Data collector to be able to save the data
         self.datacollector = DataCollector(
             {"Prison Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
-                                             cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
+                                            cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
-                                       cop.action == CopActions.bribe]) / num_cops,
+                                       cop.action == CopActions.bribe]) / sum([1 for cop in self.schedule_Cop.agents if
+                                                                               cop.time_left_in_jail == 0]),
              "AcceptComplain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                              cit.action == CitizenActions.accept_complain]) / num_cops,
+                                              cit.action == CitizenActions.accept_complain]) / self.num_active_citizens(),
              "Reject_Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                               cit.action == CitizenActions.reject_complain]) / num_cops,
+                                               cit.action == CitizenActions.reject_complain]) / self.num_active_citizens(),
              "Accept_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                             cit.action == CitizenActions.accept_silent]) / num_cops,
+                                             cit.action == CitizenActions.accept_silent]) / self.num_active_citizens(),
              "Reject_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                             cit.action == CitizenActions.reject_silent]) / num_cops,
+                                             cit.action == CitizenActions.reject_silent]) / self.num_active_citizens(),
              "Total Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                              (
-                                                      cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain)]) / num_cops,
+                                              cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain
+                                              ]) / self.num_active_citizens(),
              "Total Accept": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                            (
-                                                    cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent)]) / num_cops,
+                                            cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent
+                                            ]) / self.num_active_citizens(),
              })
 
         # Divide the cops over a network of teams
@@ -127,6 +127,10 @@ class Corruption(Model):
             for cop in self.schedule_Cop.agents[cut: cut + self.team_size]:
                 self.id_team[cop.unique_id] = team_name
             self.team_jailed[team_name] = 0
+
+    def num_active_citizens(self):
+        return sum([1 for cit in self.schedule_Citizen.agents if
+                    cit.action is not None])
 
     def update_network(self):
         """
