@@ -41,14 +41,13 @@ class Corruption(Model):
                               self,
                               lambda_=lambda_,
                               fine_amount=fine_amount,
-                              prob_success_complain=prob_success_complain,
                               complain_reward=complain_reward,
                               memory_size=memory_size,
                               cost_accept_mean=0.1,
                               cost_accept_std=0.1,
                               cost_silence_mean=0.1,
                               cost_silence_std=0.1,
-                              action=None)
+                              penalty=0.)
             self.schedule_Citizen.add(citizen)
 
         for i in range(num_cops):
@@ -58,7 +57,10 @@ class Corruption(Model):
                       lambda_=lambda_,
                       memory_size=memory_size,
                       bribe_amount_mean=0.5,
-                      bribe_amount_std=0.1)
+                      bribe_amount_std=0.1,
+                      moral_commitment_mean=0.5,
+                      moral_commitment_std=0.1,
+                      jail_cost=2)
             self.schedule_Cop.add(cop)
 
         self.cops_playing = [cop for cop in self.schedule_Cop.agents]
