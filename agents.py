@@ -30,7 +30,8 @@ class Citizen(Agent, Functions):
                  cost_accept_mean,
                  cost_accept_std,
                  cost_silence_mean,
-                 cost_silence_std):
+                 cost_silence_std,
+                 action):
         super().__init__(unique_id, model)
 
         self.action = None
@@ -109,7 +110,6 @@ class Cop(Agent, Functions):
                 if "complain" in cit_action:
                     self.in_jail = self.model.jail_time * \
                                    np.random.multinomial(1, [self.model.prob_caught, 1 - self.model.prob_caught])[0]
-
                 # If the citizen accepts to bribe, update this in the memory for the cop
                 if "accept" in cit_action:
                     self.update_memory(1)

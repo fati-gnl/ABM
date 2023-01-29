@@ -47,7 +47,8 @@ class Corruption(Model):
                               cost_accept_mean=0.1,
                               cost_accept_std=0.1,
                               cost_silence_mean=0.1,
-                              cost_silence_std=0.1)
+                              cost_silence_std=0.1,
+                              action=None)
             self.schedule_Citizen.add(citizen)
 
         for i in range(num_cops):
@@ -70,9 +71,9 @@ class Corruption(Model):
              "NoBribing": lambda m: sum([1 for cop in self.cops_playing if
                                        cop.action == "not_bribe"]) / num_cops,
              "ComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
-                         cit.action == "accept_and_complain" or cit.action == "reject_and_complain")]) / num_cops,
+                         cit.action == "accept_complain" or cit.action == "reject_complain")]) / num_cops,
              "NoComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
-                         cit.action == "accept_and_silent" or cit.action == "reject_and_silent")]) / num_cops,
+                         cit.action == "accept_silent" or cit.action == "reject_silent")]) / num_cops,
             })
 
         # Divide the cops over a network of teams
@@ -84,9 +85,6 @@ class Corruption(Model):
 
         self.schedule_Citizen.step()
         self.schedule_Cop.step()
-
-        print("cit action ", self.schedule_Citizen.agents[0].action)
-        print("cop action ", self.schedule_Cop.agents[0].action)
 
         self.datacollector.collect(self)
         self.update_network()
