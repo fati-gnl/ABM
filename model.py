@@ -9,24 +9,24 @@ from utils import CitizenActions, CopActions
 
 class Corruption(Model):
     def __init__(self,
-                 num_citizens=5000,  # constant
-                 num_cops=100,  # constant
-                 team_size=20,
+                 num_citizens=5000,
+                 num_cops=100,
+                 team_size=10,
                  rationality_of_agents=0.8,  # 0 is random totally
-                 jail_time=2,
-                 prob_of_prosecution=0.5,
+                 jail_time=4,
+                 prob_of_prosecution=0.7, #ground truth
                  memory_size=10,
                  fine_amount=1.,  # don't change this in sensitivity analysis
                  cost_complain=0.4,
                  penalty_citizen_prosecution=0.,
-                 jail_cost_factor=1.,
+                 jail_cost_factor=0.5,
                  # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
-                 cost_accept_mean_std=(0.1, 0.1),
-                 cost_silence_mean_std=(0.1, 0.1),
-                 citizen_initial_prone_to_complain=0.5,
+                 cost_accept_mean_std=(0.2, 0.05),
+                 cost_silence_mean_std=(0.1, 0.05),
+                 citizen_initial_prone_to_complain=0.5, # I suggest this doesnt need to be changed
                  citizen_complain_memory_discount_factor=0.5,
                  bribe_amount_mean_std=(0.5, 0.1),
-                 moral_commitment_mean_std=(0.5, 0.1),
+                 moral_commitment_mean_std=(0.25, 0.1),
                  initial_time_left_in_jail=0  # don't think it's worth to change that
                  ):
         super().__init__()

@@ -39,10 +39,11 @@ class Citizen(Agent):
         self.possible_actions = CitizenActions
 
     def do_action(self, bribe_amount):
-        # complain_reward = bribe to make the # of params smaller
         prob_success_complain = self.approximate_prob_successful_complain()
-        utility_accept_complain = -bribe_amount - self.cost_complain + prob_success_complain * (
-                -self.penalty_citizen_prosecution + bribe_amount) - self.cost_accept
+
+        # complain_reward = bribe to make the # of params smaller
+        utility_accept_complain = -bribe_amount + prob_success_complain * (
+                    bribe_amount - self.penalty_citizen_prosecution) - self.cost_complain - self.cost_accept
         utility_accept_silent = -bribe_amount - self.cost_silence - self.cost_accept
         utility_reject_complain = -self.fine_amount - self.cost_complain
         utility_reject_silent = -self.fine_amount - self.cost_silence
@@ -93,7 +94,7 @@ class Cop(Agent):
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
-        self.accepted_bribe_memory = [accepted_bribe_memory_initial] * self.accepted_bribe_memory_size
+        self.accepted_bribe_memory = [accepted_bribe_memory_initial]
 
         self.bribe_amount_mean_std = bribe_amount_mean_std
 
@@ -172,7 +173,6 @@ class Cop(Agent):
         This function checks how many cops in the network/group are currently in jail. This rate is the estimated probability of probability of prosecution
         :return: estimated probability of getting caught, 0 to 1
         """
-        # TODO: move it teamID be a field of an agent
         team = self.model.id_team[self.unique_id]
         m = self.model.team_jailed[team]
         return m / self.model.team_size
@@ -182,8 +182,10 @@ class Cop(Agent):
         Writes the information about last bribing attempt being successful. Keeps the memory in certain size.
         :param update: last bribing attempt result. 0 - not successful, 1 - successful
         """
-        self.accepted_bribe_memory.pop(0)
+
         self.accepted_bribe_memory.append(update)
+        if len(self.accepted_bribe_memory) > self.accepted_bribe_memory_size:
+            self.accepted_bribe_memory.pop(0)
 
     def approximate_prob_accept(self):
         """
