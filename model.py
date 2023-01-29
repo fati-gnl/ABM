@@ -11,15 +11,15 @@ class Corruption(Model):
     def __init__(self,
                  num_citizens=5000,  # constant
                  num_cops=100,  # constant
-                 team_size=2,
-                 rationality_of_agents=0.8,  # param of rationality of agents, 0 is random totally
+                 team_size=20,
+                 rationality_of_agents=0.8,  # 0 is random totally
                  jail_time=2,
                  prob_of_prosecution=0.5,
                  memory_size=5,
                  fine_amount=1,  # don't change this in sensitivity analysis
                  cost_complain=4,
                  penalty_citizen_prosecution=0.,
-                 jali_cost_factor=1.,
+                 jail_cost_factor=1.,
                  # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
                  cost_accept_mean_std=(0.1, 0.1),
                  cost_silence_mean_std=(0.1, 0.1),
@@ -35,7 +35,7 @@ class Corruption(Model):
         # how many iterations cop is inactive
         self.jail_time = jail_time
         # actual cost that cop takes into consideration in the utility function
-        self.jail_cost = jali_cost_factor * jail_time
+        self.jail_cost = jail_cost_factor * jail_time
 
         self.prob_of_prosecution = prob_of_prosecution
         self.memory_size = memory_size
@@ -70,7 +70,7 @@ class Corruption(Model):
 
         # Data collector to be able to save the data
         self.datacollector = DataCollector(
-            {"Prision Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
+            {"Prison Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
                                              cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
                                        cop.action == CopActions.bribe]) / num_cops,
