@@ -45,6 +45,7 @@ class Citizen(Agent, Functions):
         self.memory_size = memory_size
         self.memory = [0] * self.memory_size
 
+        # Hello,
         self.id_act = {0: "accept_complain",
                        1: "accept_silent",
                        2: "reject_complain",
