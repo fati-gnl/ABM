@@ -1,39 +1,9 @@
-from enum import Enum
 from typing import List, Type, Tuple
-
 import numpy as np
 import numpy.random
 from mesa import Agent
-import random
 
-
-def softmax(x, lambda_):
-    x = x * lambda_
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum(axis=0)
-
-
-def sample_action(utilities, id_act, lambda_):
-    distribution = softmax(utilities, lambda_)
-    action = id_act(np.argmax(np.random.multinomial(1, distribution)))
-    return action
-
-
-# citizen_actions = {0: "accept_complain",
-#                    1: "accept_silent",
-#                    2: "reject_complain",
-#                    3: "reject_silent"}
-# cop_actions= {0: "bribe", 1: "not_bribe"}
-class CitizenActions(Enum):
-    accept_complain = 0
-    accept_silent = 1
-    reject_complain = 2
-    reject_silent = 3
-
-
-class CopActions(Enum):
-    bribe = 0
-    not_bribe = 1
+from utils import CitizenActions, sample_action, CopActions
 
 
 class Citizen(Agent):
@@ -52,7 +22,7 @@ class Citizen(Agent):
 
         # params that are set in the model/from outside
         self.cost_complain = self.model.cost_complain
-        self.lambda_ = self.model.lambda_
+        self.rationality = self.model.rationality_of_agents
         self.fine_amount = self.model.fine_amount
         self.penalty_citizen_prosecution = self.model.penalty_citizen_prosecution
 
@@ -66,7 +36,7 @@ class Citizen(Agent):
         # 0 is easily forgetting, 1 all events important the same
         self.discount_factor = complain_memory_discount_factor
 
-        self.id_act = CitizenActions
+        self.possible_actions = CitizenActions
 
     def do_action(self, bribe_amount):
         # complain_reward = bribe to make the # of params smaller
@@ -82,15 +52,25 @@ class Citizen(Agent):
                               utility_reject_complain,
                               utility_reject_silent])
 
-        self.action = sample_action(utilities, self.id_act, self.lambda_)
+        self.action = sample_action(utilities, self.possible_actions, self.rationality)
 
     def step(self):
         self.action = None
 
     def approximate_prob_successful_complain(self):
+        """
+        Estimate how successful complain will be.
+        :return: estimated probability of cop being prosecuted.
+        """
         return self.complain_memory
 
-    def update_succesful_complain_memory(self, update):
+    def update_successful_complain_memory(self, update):
+        """
+        Updates running, discounted average. This way doesn't require remembering each event.
+        Discount factor should be in [0,1] range.
+         0 is when only last experience is important. 1 - all experiences are weighted the same
+        :param update: complain event result, 0 - cop is not caught, 1 - cop is caught
+        """
         self.complain_memory_len += 1
         self.complain_memory += self.discount_factor * (self.complain_memory * self.complain_memory_len * (
                 self.complain_memory_len - 1)) + update / self.complain_memory_len
@@ -109,7 +89,7 @@ class Cop(Agent):
 
         self.action = first_action
         self.jail_cost = self.model.jail_cost
-        self.lambda_ = self.model.lambda_
+        self.rationality = self.model.rationality_of_agents
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
@@ -118,10 +98,10 @@ class Cop(Agent):
         self.bribe_amount_mean_std = bribe_amount_mean_std
 
         # How much the cop is against taking risks. 0 - likes risk a lot, 1. - doesnt like risk at all
-        self.risk_aversion = np.random.uniform(0., 1.)
+        self.risk_aversion = np.random.uniform(0.2, 0.8)
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
 
-        self.id_act = CopActions
+        self.possible_actions = CopActions
 
     def step(self):
         self.action = None
@@ -144,10 +124,10 @@ class Cop(Agent):
                                               1 - self.model.prob_of_prosecution])[0] == 1:
                         # complain succesful -> cop goes to jail
                         self.time_left_in_jail = self.model.jail_time
-                        citizen.update_succesful_complain_memory(1)
+                        citizen.update_successful_complain_memory(1)
                     else:
                         # complain failed, citizen remembers that
-                        citizen.update_succesful_complain_memory(0)
+                        citizen.update_successful_complain_memory(0)
                 # If the citizen accepts to bribe, update this in the memory for the cop
                 if citizen.action in [CitizenActions.accept_complain, CitizenActions.accept_silent]:
                     self.update_accepting_bribe_memory(1)
@@ -162,16 +142,16 @@ class Cop(Agent):
             self.time_left_in_jail -= 1
 
     def validate_play(self):
-        '''
+        """
         Checks if the cop is allowed to play. They are allowed if they're not in jail. This is checked in model
         :return:True if allowed to play
-        '''
+        """
         return True if self in self.model.cops_playing else False
 
     def do_action(self):
-        '''
+        """
         Cop is making an action based on utilities. The sampled action is then saved in the self.action field.
-        '''
+        """
         # Draw the bribe amount from the normal distribution
         self.bribe_amount = np.random.normal(loc=self.bribe_amount_mean_std[0], scale=self.bribe_amount_mean_std[1])
 
@@ -185,21 +165,29 @@ class Cop(Agent):
 
         utilities = np.array([utility_bribe, utility_not_bribe])
 
-        self.action = sample_action(utilities, self.id_act, self.lambda_)
+        self.action = sample_action(utilities, self.possible_actions, self.rationality)
 
     def approximate_prob_caught(self):
-        '''
+        """
         This function checks how many cops in the network/group are currently in jail. This rate is the estimated probability of probability of prosecution
         :return: estimated probability of getting caught, 0 to 1
-        '''
+        """
         # TODO: move it teamID be a field of an agent
         team = self.model.id_team[self.unique_id]
         m = self.model.team_jailed[team]
         return m / self.model.team_size
 
     def update_accepting_bribe_memory(self, update):
+        """
+        Writes the information about last bribing attempt being successful. Keeps the memory in certain size.
+        :param update: last bribing attempt result. 0 - not successful, 1 - successful
+        """
         self.accepted_bribe_memory.pop(0)
         self.accepted_bribe_memory.append(update)
 
     def approximate_prob_accept(self):
+        """
+        Takes the average of the attempts.
+        :return: estimated probability of accepting the bribe by a citizen
+        """
         return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size

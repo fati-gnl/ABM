@@ -1,12 +1,10 @@
 import random
-
-import axelrod as axl
 from mesa import Model
-from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler
 
-from agents import Citizen, Cop, CitizenActions, CopActions
+from agents import Citizen, Cop
+from utils import CitizenActions, CopActions
 
 
 class Corruption(Model):
@@ -14,7 +12,7 @@ class Corruption(Model):
                  num_citizens=5000,  # constant
                  num_cops=100,  # constant
                  team_size=2,
-                 lambda_=0.8,  # param of rationality of agents, 0 is random totaly
+                 rationality_of_agents=0.8,  # param of rationality of agents, 0 is random totaly
                  jail_time=2,
                  prob_of_prosecution=0.5,
                  memory_size=5,
@@ -28,14 +26,13 @@ class Corruption(Model):
         self.jail_time = jail_time
         # actual cost that cop takes into consideration in the utility function
         # they should somehow relate to each other I think, but don't know how exactly
-        self.jail_cost = 1. *jail_time
+        self.jail_cost = 1. * jail_time
         self.prob_of_prosecution = prob_of_prosecution
         self.memory_size = memory_size
         self.cost_complain = cost_complain
         self.penalty_citizen_prosecution = penalty_citizen_prosecution
         self.fine_amount = fine_amount
-        self.lambda_ = lambda_
-
+        self.rationality_of_agents = rationality_of_agents
 
         # Initialise schedulers
         self.schedule_Citizen = BaseScheduler(self)
@@ -71,14 +68,14 @@ class Corruption(Model):
              "AcceptComplain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                               cit.action == CitizenActions.accept_complain]) / num_cops,
              "Reject_Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
-                                               cit.action ==  CitizenActions.reject_complain]) / num_cops,
+                                               cit.action == CitizenActions.reject_complain]) / num_cops,
              "Accept_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                              cit.action == CitizenActions.accept_silent]) / num_cops,
              "Reject_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                              cit.action == CitizenActions.reject_silent]) / num_cops,
              "Total Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                               (
-                                                      cit.action == CitizenActions.accept_complain or cit.action ==CitizenActions.reject_complain)]) / num_cops,
+                                                      cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain)]) / num_cops,
              "Total Accept": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
                                             (
                                                     cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent)]) / num_cops,
