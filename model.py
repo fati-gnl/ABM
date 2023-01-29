@@ -12,21 +12,31 @@ class Corruption(Model):
                  num_citizens=5000,  # constant
                  num_cops=100,  # constant
                  team_size=2,
-                 rationality_of_agents=0.8,  # param of rationality of agents, 0 is random totaly
+                 rationality_of_agents=0.8,  # param of rationality of agents, 0 is random totally
                  jail_time=2,
                  prob_of_prosecution=0.5,
                  memory_size=5,
                  fine_amount=1,  # don't change this in sensitivity analysis
                  cost_complain=4,
-                 penalty_citizen_prosecution=0.):
+                 penalty_citizen_prosecution=0.,
+                 jali_cost_factor=1.,
+                 # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
+                 cost_accept_mean_std=(0.1, 0.1),
+                 cost_silence_mean_std=(0.1, 0.1),
+                 citizen_initial_prone_to_complain=0.5,
+                 citizen_complain_memory_discount_factor=0.5,
+                 bribe_amount_mean_std=(0.5, 0.1),
+                 moral_commitment_mean_std=(0.5, 0.1),
+                 initial_time_left_in_jail=0  # don't think it's worth to change that
+                 ):
         super().__init__()
 
         self.team_size = team_size
         # how many iterations cop is inactive
         self.jail_time = jail_time
         # actual cost that cop takes into consideration in the utility function
-        # they should somehow relate to each other I think, but don't know how exactly
-        self.jail_cost = 1. * jail_time
+        self.jail_cost = jali_cost_factor * jail_time
+
         self.prob_of_prosecution = prob_of_prosecution
         self.memory_size = memory_size
         self.cost_complain = cost_complain
@@ -42,22 +52,21 @@ class Corruption(Model):
         for i in range(num_citizens):
             citizen = Citizen(i,
                               self,
-                              cost_accept_mean_std=(0.1, 0.1),
-                              cost_silence_mean_std=(0.1, 0.1),
-                              prone_to_complain=0.5,
-                              complain_memory_discount_factor=0.5)
+                              cost_accept_mean_std=cost_accept_mean_std,
+                              cost_silence_mean_std=cost_silence_mean_std,
+                              prone_to_complain=citizen_initial_prone_to_complain,
+                              complain_memory_discount_factor=citizen_complain_memory_discount_factor)
             self.schedule_Citizen.add(citizen)
 
         for i in range(num_cops):
             cop = Cop(i,
                       self,
-                      time_left_in_jail=0,
+                      time_left_in_jail=initial_time_left_in_jail,
                       accepted_bribe_memory_size=memory_size,
-                      bribe_amount_mean_std=(0.5, 0.1),
-                      moral_commitment_mean_std=(0.5, 0.1))
+                      bribe_amount_mean_std=bribe_amount_mean_std,
+                      moral_commitment_mean_std=moral_commitment_mean_std)
             self.schedule_Cop.add(cop)
 
-        self.cops_playing = [cop for cop in self.schedule_Cop.agents]
 
         # Data collector to be able to save the data
         self.datacollector = DataCollector(
@@ -95,13 +104,19 @@ class Corruption(Model):
         self.update_network()
 
     def get_citizen(self):
+        """
+        Get the citizen chosen citizens and give them to the cop.
+        :return: citizen
+        """
         citizen = random.sample(self.citizens_playing, 1)[0]
         # remove the citizen so they don't get caught twice in the same iteration
         self.citizens_playing.remove(citizen)
         return citizen
 
     def create_network(self):
-
+        """
+        Create network of police officers. They form not intersecting groups of team_size
+        """
         # Initialise the dictionaries to convert the cop_id to team name, and to convert team name to #cops in jail
         self.id_team = {}
         self.team_jailed = {}
@@ -114,7 +129,9 @@ class Corruption(Model):
             self.team_jailed[team_name] = 0
 
     def update_network(self):
-
+        """
+        Update the current jail rate for each team.
+        """
         # Reset the #cops in jail for each team
         for team in self.team_jailed:
             self.team_jailed[team] = 0
