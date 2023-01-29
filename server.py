@@ -14,31 +14,34 @@ def agent_portrayal(agent):
                  "r": 0.5}
     return portrayal
 
-
 # Create a dynamic linegraph
-chart = ChartModule([{"Label": "Bribing",
-                      "Color": "green"}, {"Label": "NoBribing",
-                      "Color": "yellow"}],
-                    data_collector_name='datacollector')
+chart4 = ChartModule([{"Label": "Bribing",
+                     "Color": "green"}, {"Label": "NoBribing",
+                     "Color": "yellow"}],
+                  data_collector_name='datacollector')
 
-chart2 = ChartModule([{"Label": "ComplainRate",
+chart5 = ChartModule([{"Label": "ComplainRate",
                       "Color": "blue"},{"Label": "NoComplainRate",
                       "Color": "red"}],
                     data_collector_name='datacollector')
 
-chart3 = ChartModule([{"Label": "Citizens",
-                      "Color": "blue"},{"Label": "Cops",
-                      "Color": "red"}],
-                    data_collector_name='datacollector')
-# chart = ChartModule([{"Label": "Citizens",
-#                       "Color": "green"},
-#                       {"Label": "Cops",
-#                       "Color": "blue"}],
-#                     data_collector_name='datacollector')
+#chart3 = ChartModule([{"Label": "Citizens",
+                      #"Color": "blue"},{"Label": "Cops",
+                      #"Color": "red"}],
+                    #data_collector_name='datacollector')
+chart = ChartModule([{"Label": "Citizens",
+                       "Color": "green"},
+                       {"Label": "Cops",
+                       "Color": "blue"}],
+                     data_collector_name='datacollector')
+
+chart2 = ChartModule([{"Label": "Available Cops",
+                       "Color": "green"}],
+                     data_collector_name='datacollector')
 
 # Create the server, and pass the grid and the graph
-server = ModularServer(CopCitizen,
-                       [chart, chart2,chart3],
+server = ModularServer(Corruption,
+                       [chart2, chart4, chart5],
                        "CopCitizen Model",
                        {})
 

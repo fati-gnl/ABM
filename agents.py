@@ -5,13 +5,17 @@ import numpy.random
 from mesa import Agent
 import random
 
-class Actions:
-    @staticmethod
-    def get_actions(agent_type: Type[Agent]) -> List[str]:
-        if agent_type == Cop:
-            return ["bribe", "not_bribe"]
-        elif agent_type == Citizen:
-            return ["accept_and_complain", "accept_and_silent", "reject_and_complain", "reject_and_silent"]
+class Functions:
+
+    def softmax(self, x, lambda_):
+        x = x * lambda_
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+
+    def sample_action(self, utilities, id_act, lambda_):
+        distribution = self.softmax(utilities, lambda_)
+        action = id_act[np.argmax(np.random.multinomial(1, distribution))]
+        return action
 
 class PayoffAgent(Agent):
     def __init__(self, unique_id, model, lambda_):

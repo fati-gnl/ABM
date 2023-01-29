@@ -8,142 +8,114 @@ from mesa.time import BaseScheduler
 
 from agents import Citizen, Cop
 
-class CopCitizen(Model):
-    '''
-    Corruption Model: Citizens and Cops
-    '''
+class Corruption(Model):
+    def __init__(self,
+                 num_citizens=5000,  # constant
+                 num_cops=100,  # constant
+                 team_size=2,
+                 lambda_=0.8,
+                 jail_time=2,
+                 prob_caught=0.5,
+                 memory_size=5,
+                 bribe_amount=5,
+                 fine_amount=10,  # dont change this in sensitivity analysis
+                 cost_complain=1,
+                 cost_accept=1,
+                 cost_silence=1,
+                 prob_success_complain=1,  # remove this
+                 complain_reward=1):
 
-    def __init__(self, initial_citizens=5000, initial_cops=100, rationality_of_agents=1,
-                 moral_commitment_mean_std=(0.3, 0.2), prob_prosecution=1, cost_of_complaining=0.1, cost_of_silence=0.1,
-                 fine=1, penalty_citizen=0.1, penalty_cop=0.1, reward_citizen=0.1, bribe_amount=5, cost_of_accepting = 0.1, prob_succesful_complain = 1):
-        '''
-        :param initial_citizens:
-        :param initial_cops:
-        :param rationality_of_agents: 0 agents completely random, 1 completely rational
-        '''
-        super().__init__()
+        self.team_size = team_size
+        self.jail_time = jail_time
+        self.prob_caught = prob_caught
+        self.memory_size = memory_size
+        self.cost_complain = cost_complain
 
-        # This should be 1 so other values are more or less normalized in respect to it
-        self.fine = fine
-        self.bribe_amount = bribe_amount
-        self.cost_of_complaining = cost_of_complaining
-        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
-        self.cost_of_silence = cost_of_silence
-        self.penalty_citizen = penalty_citizen
-        self.penalty_cop = penalty_cop
-        self.reward_citizen = reward_citizen
-        self.cost_of_accepting = cost_of_accepting
-        self.prob_succesful_complain = prob_succesful_complain
+        # Initialise schedulers
+        self.schedule_Citizen = BaseScheduler(self)
+        self.schedule_Cop = BaseScheduler(self)
 
-        self.jail_time = 0
+        # Add agents to schedulers
+        for i in range(num_citizens):
+            citizen = Citizen(i,
+                              self,
+                              lambda_=lambda_,
+                              fine_amount=fine_amount,
+                              prob_success_complain=prob_success_complain,
+                              complain_reward=complain_reward,
+                              memory_size=memory_size,
+                              cost_accept_mean=0.1,
+                              cost_accept_std=0.1,
+                              cost_silence_mean=0.1,
+                              cost_silence_std=0.1)
+            self.schedule_Citizen.add(citizen)
 
-        self.initial_citizens = initial_citizens
-        self.number_of_citizens = 1
-        self.initial_cops = initial_cops
-        self.lambda_ = rationality_of_agents
+        for i in range(num_cops):
+            cop = Cop(i,
+                      self,
+                      in_jail=0,
+                      lambda_=lambda_,
+                      memory_size=memory_size,
+                      bribe_amount_mean=0.5,
+                      bribe_amount_std=0.1)
+            self.schedule_Cop.add(cop)
 
-        # Create a scheduler for all agents
-        self.schedule = BaseScheduler(self)
+        self.cops_playing = [cop for cop in self.schedule_Cop.agents]
 
-        # Data collector to be able to save the data - cop and citizen count
-        # Todo: We should collect other data - maybe mean payoff or total payoff. For sure citizens actions
-        # Mean payoffs, Action distribution, Citizen's complaints rate
-        # Already implemented: bribing rate
+        # Data collector to be able to save the data
         self.datacollector = DataCollector(
-            {"Bribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/self.number_of_citizens,
-             "NoBribing": lambda m: sum([1 for cop in self.schedule.agents if type(cop) == Cop and cop.action == "not_bribe"])/self.number_of_citizens,
-             "ComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_complain" or cit.action == "reject_and_complain")])/self.number_of_citizens,
-             "NoComplainRate": lambda m: sum([1 for cit in self.schedule.agents if type(cit) == Citizen and (cit.action == "accept_and_silent" or cit.action == "reject_and_silent")])/self.number_of_citizens,
-             })
+            {"Available Cops": lambda m: len(self.cops_playing),
+             "Bribing": lambda m: sum([1 for cop in self.cops_playing if
+                                       cop.action == "bribe"]) / num_cops,
+             "NoBribing": lambda m: sum([1 for cop in self.cops_playing if
+                                       cop.action == "not_bribe"]) / num_cops,
+             "ComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
+                         cit.action == "accept_and_complain" or cit.action == "reject_and_complain")]) / num_cops,
+             "NoComplainRate": lambda m: sum([1 for cit in self.schedule_Citizen.agents if (
+                         cit.action == "accept_and_silent" or cit.action == "reject_and_silent")]) / num_cops,
+            })
 
-        # Create cops
-        for i in range(self.initial_cops):
-            cop = Cop(self.next_id(), self, self.lambda_, jail_time = 0, moral_commitment_mean_std=moral_commitment_mean_std)
-            self.schedule.add(cop)
-
-        # Create citizens
-        for i in range(self.initial_citizens):
-            citizen = Citizen(self.next_id(), self, self.lambda_)
-            self.schedule.add(citizen)
-
-        # Needed for the Batch run
-        self.running = True
-        # Needed for the datacollector
-        self.datacollector.collect(self)
-
-        # TODO: make it change depending on the environment
-        # TODO: decide if should be moved to each agent individually
-        self.prob_prosecution = 1
-
-        # This should be 1 so other values are more or less normalized in respect to it
-        self.fine = 1.
-
-        # This I think should be here as it's more global?
-        self.cost_of_complaining = 0
-        # TODO: Should this be different for each individual? Or dependent on an environment somehow?
-        self.cost_of_silence = 0.9
-        # This is systematic, so I think global is good
-        self.penalty_citizen = 0.1
-        self.penalty_cop = 60.
-        self.reward_citizen = 10
-
-        # Create social groups or networks (groups of cops that will see the actions that their friends took in the past)
-        self.cop_list = [agent for agent in self.schedule.agents if isinstance(agent, Cop)]
-        self.network = self.social_connections(self.cop_list, 10)
+        # Divide the cops over a network of teams
+        self.create_network()
 
     def step(self):
-        '''
-        Method that calls the step method for each of the citizens, and then for each of the cops.
-        '''
+        self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.in_jail == 0]
+        self.citizens_playing = random.sample(self.schedule_Citizen.agents, len(self.cops_playing))
 
-        # Calculate if the cops in each group have been to prision or not
-        n_prision_count = []
-        for groups in self.network:
-            prision_count = []
-            for agent in groups:
-                if (agent.jail_time > 0):
-                    prision_count.append(1)
-            n_prision_count.append(sum(prision_count))
+        self.schedule_Citizen.step()
+        self.schedule_Cop.step()
 
-        print(n_prision_count)
+        print("cit action ", self.schedule_Citizen.agents[0].action)
+        print("cop action ", self.schedule_Cop.agents[0].action)
 
-        # Create list of cops that will be used to keep track of which cops have already served a citizen in that step
-        self.available_cops = [agent for agent in self.schedule.agents if isinstance(agent, Cop) and agent.jail_time == 0]
-
-        # Number of citizens == number of cops
-        self.number_of_citizens = len(list(filter(lambda a: type(a) == Cop and a.jail_time == 0, self.schedule.agents)))
-
-        self.caught_citizens = random.choices([agent for agent in self.schedule.agents if isinstance(agent, Citizen)], k=self.number_of_citizens)
-
-        self.schedule.step()
-
-        # Save the statistics
         self.datacollector.collect(self)
+        self.update_network()
 
-        # Reduce jail_time
-        for groups in self.network:
-            for agent in groups:
-                if agent.jail_time != 0:
-                    agent.jail_time -= 1
+    def get_citizen(self):
+        citizen = random.sample(self.citizens_playing, 1)[0]
+        self.citizens_playing.remove(citizen)
+        return citizen
 
-    def get_cop(self):
-        '''
-        Gets a cop from the available cops, this cop is not available anymore.
-        If all cops busy, return None
-        :return: Cop object or None
-        '''
-        if len(self.available_cops) > 0:
-            cop =  random.sample(self.available_cops, 1)[0]
-            self.available_cops.remove(cop)
-            return cop
-        return None
+    def create_network(self):
 
-    def social_connections(self, available_cops, group_size):
-        '''
-        Groups all the cops into smaller groups of cops (their social network)
-        :return:
-        '''
-        social_groups = []
-        for i in range(0, len(available_cops), group_size):
-            social_groups.append(available_cops[i:i + group_size])
-        return social_groups
+        # Initialise the dictionaries to convert the cop_id to team name, and to convert team name to #cops in jail
+        self.id_team = {}
+        self.team_jailed = {}
+
+        # For each cop save their team name and for each team name initialise the #cops in jail
+        for team_number, cut in enumerate(range(0, len(self.schedule_Cop.agents), self.team_size)):
+            team_name = "team_" + str(team_number)
+            for cop in self.schedule_Cop.agents[cut: cut + self.team_size]:
+                self.id_team[cop.unique_id] = team_name
+            self.team_jailed[team_name] = 0
+
+    def update_network(self):
+
+        # Reset the #cops in jail for each team
+        for team in self.team_jailed:
+            self.team_jailed[team] = 0
+
+        # Update the #cops in jail for each team
+        for cop in self.schedule_Cop.agents:
+            team = self.id_team[cop.unique_id]
+            self.team_jailed[team] += 1 if cop.in_jail > 0 else 0
