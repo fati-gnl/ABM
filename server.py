@@ -44,18 +44,22 @@ chart_accept = ChartModule([{"Label": "Total Accept",
 model_params = {
     # The following line is an example to showcase StaticText.
     "title": mesa.visualization.StaticText("Model Parameters"),
-    "team_size": mesa.visualization.Slider(
-        "Cop Network Size", 10, 1, 100, 1,
-        description="The number of cops in a network.",
-    ),
     "jail_time": mesa.visualization.Slider(
         "Jail Time", 1, 0, 5, 1
     ),
     "cost_complain": mesa.visualization.Slider(
         "Cost of Complaining", 0.50, 0., 1.0, 0.01
     ),
+    "prob_of_prosecution": mesa.visualization.Slider(
+        "Probobability of prosecution", 0.70, 0., 1.0, 0.01
+    ),
+    "penalty_citizen_prosecution": mesa.visualization.Slider(
+        "Penalty citizen of prosecution", 0., 0., 1.0, 0.1
+    ),
+    "jail_cost_factor": mesa.visualization.Slider(
+        "Jail Cost Factor", 0.5, 0., 1.0, 0.1
+    ),
 }
-
 
 # Create the server, and pass the grid and the graph
 server = ModularServer(Corruption,
