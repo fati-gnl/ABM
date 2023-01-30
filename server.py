@@ -1,3 +1,4 @@
+import mesa
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 
@@ -40,11 +41,27 @@ chart_accept = ChartModule([{"Label": "Total Accept",
                              "Color": "green"}],
                            data_collector_name='datacollector')
 
+model_params = {
+    # The following line is an example to showcase StaticText.
+    "title": mesa.visualization.StaticText("Model Parameters"),
+    "team_size": mesa.visualization.Slider(
+        "Cop Network Size", 10, 1, 100, 1,
+        description="The number of cops in a network.",
+    ),
+    "jail_time": mesa.visualization.Slider(
+        "Jail Time", 1, 0, 5, 1
+    ),
+    "cost_complain": mesa.visualization.Slider(
+        "Cost of Complaining", 0.50, 0., 1.0, 0.01
+    ),
+}
+
+
 # Create the server, and pass the grid and the graph
 server = ModularServer(Corruption,
                        [chart2, chart4, chart5, chart_complain, chart_accept],
-                       "Corruption Model",
-                       {})
+                       "Corruption Model", model_params, {})
+
 
 server.port = 8526
 

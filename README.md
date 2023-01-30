@@ -10,5 +10,14 @@ Cops have to types of memory: accepting_bribe_memory and prob_caught. Former is 
 #### Social Network
 Cops are connected through social network, which is imitated by teams. Each team has the same size and each cop belongs to exactly one team. It is used only in estimating probability of prosecution.
 
+#### Installation
+
+
 #### How to run
 Just run `server.py` file. It will open mesa board in your browser. You will see charts there of the simulation. 
+
+#### Files
+- `ABM/agents.py`: This file defines the Citizen and Cop agent classes
+- `ABM/model.py`: Defines the Corruption model itself
+- `ABM/server.py`:  Sets up the interactive visualization server
+- `ABM/utils.py`:
