@@ -22,10 +22,9 @@ class Corruption(Model):
                  jail_cost_factor=0.5,
                  # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
                  cost_accept_mean_std=(0.2, 0.05),
-                 cost_silence_mean_std=(0.1, 0.05),
                  citizen_initial_prone_to_complain=0.5, # I suggest this doesnt need to be changed
                  citizen_complain_memory_discount_factor=0.5,
-                 bribe_amount_mean_std=(0.5, 0.1),
+                 bribe_amount=0.5,
                  moral_commitment_mean_std=(0.25, 0.1),
                  initial_time_left_in_jail=0  # don't think it's worth to change that
                  ):
@@ -53,7 +52,6 @@ class Corruption(Model):
             citizen = Citizen(i,
                               self,
                               cost_accept_mean_std=cost_accept_mean_std,
-                              cost_silence_mean_std=cost_silence_mean_std,
                               prone_to_complain=citizen_initial_prone_to_complain,
                               complain_memory_discount_factor=citizen_complain_memory_discount_factor)
             self.schedule_Citizen.add(citizen)
@@ -63,7 +61,7 @@ class Corruption(Model):
                       self,
                       time_left_in_jail=initial_time_left_in_jail,
                       accepted_bribe_memory_size=memory_size,
-                      bribe_amount_mean_std=bribe_amount_mean_std,
+                      bribe_amount=bribe_amount,
                       moral_commitment_mean_std=moral_commitment_mean_std)
             self.schedule_Cop.add(cop)
 

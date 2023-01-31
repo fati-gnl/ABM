@@ -11,7 +11,6 @@ class Citizen(Agent):
                  unique_id,
                  model,
                  cost_accept_mean_std: Tuple[float, float],
-                 cost_silence_mean_std: Tuple[float, float],
                  prone_to_complain: float,
                  complain_memory_discount_factor: float,
                  first_action: str = None
@@ -28,7 +27,6 @@ class Citizen(Agent):
 
         # initialize moral costs
         self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
-        self.cost_silence = np.random.normal(loc=cost_silence_mean_std[0], scale=cost_silence_mean_std[1])
 
         # Initialize memory, complain_memory ==0.5 means that the beginning state is being indifferent
         self.complain_memory_len = 1
@@ -44,9 +42,9 @@ class Citizen(Agent):
         # complain_reward = bribe to make the # of params smaller
         utility_accept_complain = -bribe_amount + prob_success_complain * (
                     bribe_amount - self.penalty_citizen_prosecution) - self.cost_complain - self.cost_accept
-        utility_accept_silent = -bribe_amount - self.cost_silence - self.cost_accept
+        utility_accept_silent = -bribe_amount - self.cost_accept
         utility_reject_complain = -self.fine_amount - self.cost_complain
-        utility_reject_silent = -self.fine_amount - self.cost_silence
+        utility_reject_silent = -self.fine_amount
 
         utilities = np.array([utility_accept_complain,
                               utility_accept_silent,
@@ -82,7 +80,7 @@ class Cop(Agent):
                  model,
                  time_left_in_jail: int,
                  accepted_bribe_memory_size: int,
-                 bribe_amount_mean_std: Tuple[float, float],
+                 bribe_amount: float,
                  moral_commitment_mean_std: Tuple[float, float],
                  first_action: str = None,
                  accepted_bribe_memory_initial: float = 0.5):
@@ -91,15 +89,13 @@ class Cop(Agent):
         self.action = first_action
         self.jail_cost = self.model.jail_cost
         self.rationality = self.model.rationality_of_agents
+        self.bribe_amount=bribe_amount
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
         self.accepted_bribe_memory = [accepted_bribe_memory_initial]
 
-        self.bribe_amount_mean_std = bribe_amount_mean_std
 
-        # How much the cop is against taking risks. 0 - likes risk a lot, 1. - doesnt like risk at all
-        self.risk_aversion = np.random.uniform(0.2, 0.8)
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
 
         self.possible_actions = CopActions
@@ -153,15 +149,12 @@ class Cop(Agent):
         """
         Cop is making an action based on utilities. The sampled action is then saved in the self.action field.
         """
-        # Draw the bribe amount from the normal distribution
-        self.bribe_amount = np.random.normal(loc=self.bribe_amount_mean_std[0], scale=self.bribe_amount_mean_std[1])
 
         approx_prob_caught = self.approximate_prob_caught()
         approx_prob_accept = self.approximate_prob_accept()
 
         # Calculate expected utilities for each action
-        utility_bribe = (1 - approx_prob_caught) * (approx_prob_accept * (
-                1 - self.risk_aversion) * self.bribe_amount) - approx_prob_caught * self.jail_cost
+        utility_bribe = (1 - approx_prob_caught) * approx_prob_accept * self.bribe_amount - approx_prob_caught * self.jail_cost
         utility_not_bribe = self.moral_commitment
 
         utilities = np.array([utility_bribe, utility_not_bribe])
