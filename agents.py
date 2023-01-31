@@ -41,7 +41,7 @@ class Citizen(Agent):
 
         # complain_reward = bribe to make the # of params smaller
         utility_accept_complain = -bribe_amount + prob_success_complain * (
-                    bribe_amount - self.penalty_citizen_prosecution) - self.cost_complain - self.cost_accept
+                bribe_amount - self.penalty_citizen_prosecution) - self.cost_complain - self.cost_accept
         utility_accept_silent = -bribe_amount - self.cost_accept
         utility_reject_complain = -self.fine_amount - self.cost_complain
         utility_reject_silent = -self.fine_amount
@@ -71,8 +71,10 @@ class Citizen(Agent):
         :param update: complain event result, 0 - cop is not caught, 1 - cop is caught
         """
         self.complain_memory_len += 1
-        self.complain_memory += self.discount_factor * (self.complain_memory * self.complain_memory_len * (
-                self.complain_memory_len - 1)) + update / self.complain_memory_len
+        old_mean_rate = (self.complain_memory_len - 1) / self.complain_memory_len
+
+        self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_len
+        assert self.complain_memory <=1.0 or self.complain_memory >=0.0, ("Complain memory is out of proper range! "+ str(self.complain_memory))
 
 
 class Cop(Agent):
@@ -89,12 +91,11 @@ class Cop(Agent):
         self.action = first_action
         self.jail_cost = self.model.jail_cost
         self.rationality = self.model.rationality_of_agents
-        self.bribe_amount=bribe_amount
+        self.bribe_amount = bribe_amount
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
         self.accepted_bribe_memory = [accepted_bribe_memory_initial]
-
 
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
 
@@ -154,7 +155,8 @@ class Cop(Agent):
         approx_prob_accept = self.approximate_prob_accept()
 
         # Calculate expected utilities for each action
-        utility_bribe = (1 - approx_prob_caught) * approx_prob_accept * self.bribe_amount - approx_prob_caught * self.jail_cost
+        utility_bribe = (
+                                1 - approx_prob_caught) * approx_prob_accept * self.bribe_amount - approx_prob_caught * self.jail_cost
         utility_not_bribe = self.moral_commitment
 
         utilities = np.array([utility_bribe, utility_not_bribe])
