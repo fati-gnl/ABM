@@ -9,7 +9,7 @@ from SALib.analyze import sobol
 import pandas as pd
 plt.style.use('ggplot')
 
-#Local Sensitivity Analysis
+# Local Sensitivity Analysis
 
 problem = {
     'num_vars': 6,
