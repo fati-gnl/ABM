@@ -13,11 +13,13 @@ plt.style.use('ggplot')
 
 problem = {
     'num_vars': 6,
-    'names': ['prob_prosecution', 'cost_of_complaining', 'cost_of_silence', 'reward_citizen', 'penalty_citizen',
-              'penalty_cop'],
-    'bounds': [[0.01, 1], [0.01, 100], [0.01, 100], [0.01, 100], [0.01, 100], [0.01, 100]]
+    'names': ['team_size', 'rationality_of_agents', 'jail_time', 'prob_of_prosecution', 'memory_size',
+              'cost_complain', 'penalty_citizen_prosecution',
+              'jail_cost_factor','citizen_complain_memory_discount_factor', 'bribe_amount'],
+    'bounds': [[5, 25], [0.01, 0.99], [1, 15], [0.01, 0.99], [2, 20], [3, 60], [2, 50], [2, 50], [2, 50], [0.5, 100]]
 }
 
+integer_vars = ['team_size', 'jail_time', 'memory_size']
 # Set the repetitions, the amount of steps, and the amount of distinct values per variable
 replicates = 2
 max_steps = 130
@@ -32,20 +34,20 @@ data = {}
 for i, var in enumerate(problem['names']):
     # Get the bounds for this variable and get <distinct_samples> samples within this space (uniform)
     samples = np.linspace(*problem['bounds'][i], num=distinct_samples)
+    # Some parameters should have integer values. We change
+    # the code to acommodate for this and sample only integers.
+    if var in integer_vars:
+        samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
 
-    # Keep in mind that wolf_gain_from_food should be integers. You will have to change
-    # your code to acommodate for this or sample in such a way that you only get integers.
+    batch = BatchRunner(Corruption,
+                        max_steps=max_steps,
+                        iterations=replicates,
+                        variable_parameters={var: samples},
+                        model_reporters=model_reporters,
+                        display_progress=True)
 
-
-    # batch = BatchRunner(CopCitizen,
-    #                     max_steps=max_steps,
-    #                     iterations=replicates,
-    #                     variable_parameters={var: samples},
-    #                     model_reporters=model_reporters,
-    #                     display_progress=True)
-    #
-    # batch.run_all()
-    # data[var] = batch.get_model_vars_dataframe()
+    batch.run_all()
+    data[var] = batch.get_model_vars_dataframe()
 
 
 def plot_param_var_conf(df, var, param, i):
@@ -84,19 +86,25 @@ def plot_all_vars(df, param):
         plot_param_var_conf(data[var], var, param, i)
 
 
-# for param in ('Bribing', 'NoBribing'):
-#     plot_all_vars(data, param)
-#     plt.show()
+for param in ('Bribing', 'NoBribing'):
+    plot_all_vars(data, param)
+    plt.show()
 
 #RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
-def model_baseline_output(prob_prosecution, cost_of_complaining, cost_of_silence, reward_citizen, penalty_citizen, penalty_cop, max_steps, model_reporters):
+def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_prosecution, memory_size, cost_complain, penalty_citizen_prosecution, jail_cost_factor, citizen_complain_memory_discount_factor, bribe_amount, max_steps, model_reporters):
 
     data_fixed = {}
 
-    batch_fixed = FixedBatchRunner(CopCitizen,
+    batch_fixed = FixedBatchRunner(Corruption,
                                    parameters_list=[
-                                       {'prob_prosecution': prob_prosecution, 'cost_of_complaining': cost_of_complaining, 'cost_of_silence': cost_of_silence,
-                                        'reward_citizen': reward_citizen, 'penalty_citizen':penalty_citizen,'penalty_cop':penalty_cop}],
+                                       {'team_size': team_size, 'rationality_of_agents': rationality_of_agents,
+                                        'jail_time': jail_time,
+                                        'prob_of_prosecution': prob_of_prosecution,
+                                        'memory_size':memory_size,'cost_complain':cost_complain,
+                                        'penalty_citizen_prosecution':penalty_citizen_prosecution,
+                                        'jail_cost_factor':jail_cost_factor,
+                                        'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
+                                        'bribe_amount':bribe_amount}],
                                    iterations=100,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
@@ -121,24 +129,23 @@ def model_baseline_output(prob_prosecution, cost_of_complaining, cost_of_silence
         alpha=0.5,
         )
 
-        # kde = sm.nonparametric.KDEUnivariate(data)
-        # kde.fit()  # Estimate the densities
-        #
-        # # Plot the KDE as fitted using the default arguments
-        # ax.plot(kde.support, kde.density, lw=3, label="KDE from samples", zorder=10)
-        #
-        # ax.set_ylabel('Density')
-        # ax.set_xlabel(data_name)
-        # ax.legend(loc="best")
-        # ax.grid(True, zorder=-5)
+        kde = sm.nonparametric.KDEUnivariate(data)
+        kde.fit()  # Estimate the densities
+
+        # Plot the KDE as fitted using the default arguments
+        ax.plot(kde.support, kde.density, lw=3, label="KDE from samples", zorder=10)
+
+        ax.set_ylabel('Density')
+        ax.set_xlabel(data_name)
+        ax.legend(loc="best")
+        ax.grid(True, zorder=-5)
         plt.show()
 
     for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
          plot_dist(data, label)
 
 
-model_baseline_output(prob_prosecution=0.7, cost_of_complaining=3, cost_of_silence=2, reward_citizen=10,
-                      penalty_citizen=7, penalty_cop=35, max_steps=max_steps, model_reporters=model_reporters)
+#model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7, memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5, citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps, model_reporters=model_reporters)
 
 #Global Sensitivity Analysis
 # replicates_global = 10
