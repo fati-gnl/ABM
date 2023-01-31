@@ -16,14 +16,14 @@ problem = {
     'names': ['team_size', 'rationality_of_agents', 'jail_time', 'prob_of_prosecution', 'memory_size',
               'cost_complain', 'penalty_citizen_prosecution',
               'jail_cost_factor','citizen_complain_memory_discount_factor', 'bribe_amount'],
-    'bounds': [[5, 25], [0.01, 0.99], [1, 15], [0.01, 0.99], [2, 20], [3, 60], [2, 50], [2, 50], [2, 50], [0.5, 100]]
+    'bounds': [[5, 25], [0.01, 0.99], [1, 15], [0.01, 0.99], [2, 20], [0.3, 60], [0, 20], [0.3, 35], [0, 35], [0, 5]]
 }
 
 integer_vars = ['team_size', 'jail_time', 'memory_size']
 # Set the repetitions, the amount of steps, and the amount of distinct values per variable
-replicates = 2
+replicates = 10
 max_steps = 130
-distinct_samples = 3
+distinct_samples = 15
 
 # Set the outputs
 model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/m.number_of_citizens,
@@ -86,9 +86,9 @@ def plot_all_vars(df, param):
         plot_param_var_conf(data[var], var, param, i)
 
 
-for param in ('Bribing', 'NoBribing'):
-    plot_all_vars(data, param)
-    plt.show()
+# for param in ('Bribing', 'NoBribing'):
+#     plot_all_vars(data, param)
+#     plt.show()
 
 #RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
 def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_prosecution, memory_size, cost_complain, penalty_citizen_prosecution, jail_cost_factor, citizen_complain_memory_discount_factor, bribe_amount, max_steps, model_reporters):
@@ -145,7 +145,10 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
          plot_dist(data, label)
 
 
-#model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7, memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5, citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps, model_reporters=model_reporters)
+model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
+                      memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
+                      citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
+                      model_reporters=model_reporters)
 
 #Global Sensitivity Analysis
 # replicates_global = 10
