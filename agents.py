@@ -29,7 +29,7 @@ class Citizen(Agent):
         self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
 
         # Initialize memory, complain_memory ==0.5 means that the beginning state is being indifferent
-        self.complain_memory_len = 1
+        self.complain_memory_accumulated_weights = 1
         self.complain_memory = prone_to_complain
         # 0 is easily forgetting, 1 all events important the same
         self.discount_factor = complain_memory_discount_factor
@@ -70,10 +70,11 @@ class Citizen(Agent):
          0 is when only last experience is important. 1 - all experiences are weighted the same
         :param update: complain event result, 0 - cop is not caught, 1 - cop is caught
         """
-        self.complain_memory_len += 1
-        old_mean_rate = (self.complain_memory_len - 1) / self.complain_memory_len
+        old_complain_memory_sum_weights=  self.complain_memory_accumulated_weights
+        self.complain_memory_accumulated_weights = self.complain_memory_accumulated_weights*self.discount_factor + 1
+        old_mean_rate = (old_complain_memory_sum_weights) / self.complain_memory_accumulated_weights
 
-        self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_len
+        self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_accumulated_weights
         assert self.complain_memory <=1.0 or self.complain_memory >=0.0, ("Complain memory is out of proper range! "+ str(self.complain_memory))
 
 
