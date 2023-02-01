@@ -12,7 +12,7 @@ plt.style.use('ggplot')
 # Local Sensitivity Analysis
 
 problem = {
-    'num_vars': 6,
+    'num_vars': 10,
     'names': ['team_size', 'rationality_of_agents', 'jail_time', 'prob_of_prosecution', 'memory_size',
               'cost_complain', 'penalty_citizen_prosecution',
               'jail_cost_factor','citizen_complain_memory_discount_factor', 'bribe_amount'],
@@ -21,13 +21,13 @@ problem = {
 
 integer_vars = ['team_size', 'jail_time', 'memory_size']
 # Set the repetitions, the amount of steps, and the amount of distinct values per variable
-replicates = 10
+replicates = 2
 max_steps = 130
 distinct_samples = 15
 
 # Set the outputs
-model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule.agents if type(cop) == Cop and cop.action == "bribe"])/m.number_of_citizens,
-             "NoBribing": lambda m: sum([1 for cop in m.schedule.agents if type(cop) == Cop and cop.action == "not_bribe"])/m.number_of_citizens}
+model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.possible_actions(0)]),
+             "NoBribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.possible_actions(1)])}
 
 data = {}
 
@@ -39,15 +39,15 @@ for i, var in enumerate(problem['names']):
     if var in integer_vars:
         samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
 
-    batch = BatchRunner(Corruption,
-                        max_steps=max_steps,
-                        iterations=replicates,
-                        variable_parameters={var: samples},
-                        model_reporters=model_reporters,
-                        display_progress=True)
-
-    batch.run_all()
-    data[var] = batch.get_model_vars_dataframe()
+    # batch = BatchRunner(Corruption,
+    #                     max_steps=max_steps,
+    #                     iterations=replicates,
+    #                     variable_parameters={var: samples},
+    #                     model_reporters=model_reporters,
+    #                     display_progress=True)
+    #
+    # batch.run_all()
+    # data[var] = batch.get_model_vars_dataframe()
 
 
 def plot_param_var_conf(df, var, param, i):
@@ -105,12 +105,13 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
                                         'jail_cost_factor':jail_cost_factor,
                                         'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
                                         'bribe_amount':bribe_amount}],
-                                   iterations=100,
+                                   iterations=10,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
     batch_fixed.run_all()
 
     data_fixed = batch_fixed.get_model_vars_dataframe()
+    print(data_fixed)
     amount_bribe = data_fixed["Bribing"].values
     amount_nobribe = data_fixed["NoBribing"].values
 
@@ -130,6 +131,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         )
 
         kde = sm.nonparametric.KDEUnivariate(data)
+        print(data)
         kde.fit()  # Estimate the densities
 
         # Plot the KDE as fitted using the default arguments
@@ -152,13 +154,13 @@ model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, pro
 
 #Global Sensitivity Analysis
 # replicates_global = 10
-# max_steps_global = 100
+# max_steps_global = 130
 # distinct_samples_global = 10
 #
 # # We get all our samples here
 # param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
 #
-# batch_global = BatchRunner(CopCitizen,
+# batch_global = BatchRunner(Corruption,
 #                     max_steps=max_steps_global,
 #                     variable_parameters={name:[] for name in problem['names']},
 #                     model_reporters=model_reporters)

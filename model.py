@@ -30,6 +30,9 @@ class Corruption(Model):
                  ):
         super().__init__()
 
+        self.num_citizens = num_citizens
+        self.num_cops = num_cops
+
         self.team_size = team_size
         # how many iterations cop is inactive
         self.jail_time = jail_time
@@ -44,7 +47,7 @@ class Corruption(Model):
         self.rationality_of_agents = rationality_of_agents
 
         # Initialise schedulers
-        self.schedule_Citizen = BaseScheduler(self)
+        self.schedule = BaseScheduler(self)
         self.schedule_Cop = BaseScheduler(self)
 
         # Add agents to schedulers
@@ -54,7 +57,7 @@ class Corruption(Model):
                               cost_accept_mean_std=cost_accept_mean_std,
                               prone_to_complain=citizen_initial_prone_to_complain,
                               complain_memory_discount_factor=citizen_complain_memory_discount_factor)
-            self.schedule_Citizen.add(citizen)
+            self.schedule.add(citizen)
 
         for i in range(num_cops):
             cop = Cop(i,
@@ -72,18 +75,18 @@ class Corruption(Model):
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
                                        cop.action == CopActions.bribe]) / sum([1 for cop in self.schedule_Cop.agents if
                                                                                cop.time_left_in_jail == 0]),
-             "AcceptComplain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "AcceptComplain": lambda m: sum([1 for cit in self.schedule.agents if
                                               cit.action == CitizenActions.accept_complain]) / self.num_active_citizens(),
-             "Reject_Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "Reject_Complain": lambda m: sum([1 for cit in self.schedule.agents if
                                                cit.action == CitizenActions.reject_complain]) / self.num_active_citizens(),
-             "Accept_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "Accept_Silent": lambda m: sum([1 for cit in self.schedule.agents if
                                              cit.action == CitizenActions.accept_silent]) / self.num_active_citizens(),
-             "Reject_Silent": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "Reject_Silent": lambda m: sum([1 for cit in self.schedule.agents if
                                              cit.action == CitizenActions.reject_silent]) / self.num_active_citizens(),
-             "Total Complain": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "Total Complain": lambda m: sum([1 for cit in self.schedule.agents if
                                               cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain
                                               ]) / self.num_active_citizens(),
-             "Total Accept": lambda m: sum([1 for cit in self.schedule_Citizen.agents if
+             "Total Accept": lambda m: sum([1 for cit in self.schedule.agents if
                                             cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent
                                             ]) / self.num_active_citizens(),
              })
@@ -93,9 +96,9 @@ class Corruption(Model):
 
     def step(self):
         self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.time_left_in_jail == 0]
-        self.citizens_playing = random.sample(self.schedule_Citizen.agents, len(self.cops_playing))
+        self.citizens_playing = random.sample(self.schedule.agents, len(self.cops_playing))
 
-        self.schedule_Citizen.step()
+        self.schedule.step()
         self.schedule_Cop.step()
 
         self.datacollector.collect(self)
@@ -127,7 +130,7 @@ class Corruption(Model):
             self.team_jailed[team_name] = 0
 
     def num_active_citizens(self):
-        return sum([1 for cit in self.schedule_Citizen.agents if
+        return sum([1 for cit in self.schedule.agents if
                     cit.action is not None])
 
     def update_network(self):
