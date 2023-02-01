@@ -75,20 +75,20 @@ class Corruption(Model):
              "Bribing": lambda m: sum([1 for cop in self.cops_playing if
                                        cop.action == CopActions.bribe]) / sum([1 for cop in self.schedule_Cop.agents if
                                                                                cop.time_left_in_jail == 0]),
-             "AcceptComplain": lambda m: sum([1 for cit in self.schedule.agents if
-                                              cit.action == CitizenActions.accept_complain]) / self.num_active_citizens(),
-             "Reject_Complain": lambda m: sum([1 for cit in self.schedule.agents if
-                                               cit.action == CitizenActions.reject_complain]) / self.num_active_citizens(),
-             "Accept_Silent": lambda m: sum([1 for cit in self.schedule.agents if
-                                             cit.action == CitizenActions.accept_silent]) / self.num_active_citizens(),
-             "Reject_Silent": lambda m: sum([1 for cit in self.schedule.agents if
-                                             cit.action == CitizenActions.reject_silent]) / self.num_active_citizens(),
-             "Total Complain": lambda m: sum([1 for cit in self.schedule.agents if
+             "AcceptComplain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                              cit.action == CitizenActions.accept_complain]) / self.num_active_citizens() or 0,
+             "Reject_Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                               cit.action == CitizenActions.reject_complain]) / self.num_active_citizens() or 0,
+             "Accept_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                             cit.action == CitizenActions.accept_silent]) / self.num_active_citizens() or 0,
+             "Reject_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                             cit.action == CitizenActions.reject_silent]) / self.num_active_citizens() or 0,
+             "Total Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
                                               cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain
-                                              ]) / self.num_active_citizens(),
-             "Total Accept": lambda m: sum([1 for cit in self.schedule.agents if
+                                              ]) / self.num_active_citizens() or 0,
+             "Total Accept": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
                                             cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent
-                                            ]) / self.num_active_citizens(),
+                                            ]) / self.num_active_citizens() or 0,
              })
 
         # Divide the cops over a network of teams
