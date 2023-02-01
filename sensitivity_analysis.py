@@ -26,8 +26,8 @@ max_steps = 130
 distinct_samples = 15
 
 # Set the outputs
-model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.possible_actions(0)]),
-             "NoBribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.possible_actions(1)])}
+model_reporters = { "Bribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.action == cop.possible_actions(0)]),
+             "NoBribing": lambda m: sum([1 for cop in m.schedule_Cop.agents if cop.action == cop.possible_actions(1)])}
 
 data = {}
 
@@ -105,13 +105,12 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
                                         'jail_cost_factor':jail_cost_factor,
                                         'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
                                         'bribe_amount':bribe_amount}],
-                                   iterations=10,
+                                   iterations=120,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
     batch_fixed.run_all()
 
     data_fixed = batch_fixed.get_model_vars_dataframe()
-    print(data_fixed)
     amount_bribe = data_fixed["Bribing"].values
     amount_nobribe = data_fixed["NoBribing"].values
 
@@ -123,7 +122,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         ax.hist(
         data,
         bins=20,
-        density=False,
+        density=True,
         label="Histogram from samples",
         zorder=5,
         edgecolor="k",
@@ -131,7 +130,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         )
 
         kde = sm.nonparametric.KDEUnivariate(data)
-        print(data)
+
         kde.fit()  # Estimate the densities
 
         # Plot the KDE as fitted using the default arguments
