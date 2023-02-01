@@ -21,7 +21,7 @@ problem = {
 
 integer_vars = ['team_size', 'jail_time', 'memory_size']
 # Set the repetitions, the amount of steps, and the amount of distinct values per variable
-replicates = 2
+replicates = 20
 max_steps = 130
 distinct_samples = 15
 
@@ -39,15 +39,15 @@ for i, var in enumerate(problem['names']):
     if var in integer_vars:
         samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
 
-    # batch = BatchRunner(Corruption,
-    #                     max_steps=max_steps,
-    #                     iterations=replicates,
-    #                     variable_parameters={var: samples},
-    #                     model_reporters=model_reporters,
-    #                     display_progress=True)
-    #
-    # batch.run_all()
-    # data[var] = batch.get_model_vars_dataframe()
+    batch = BatchRunner(Corruption,
+                        max_steps=max_steps,
+                        iterations=replicates,
+                        variable_parameters={var: samples},
+                        model_reporters=model_reporters,
+                        display_progress=True)
+
+    batch.run_all()
+    data[var] = batch.get_model_vars_dataframe()
 
 
 def plot_param_var_conf(df, var, param, i):
@@ -86,9 +86,10 @@ def plot_all_vars(df, param):
         plot_param_var_conf(data[var], var, param, i)
 
 
-# for param in ('Bribing', 'NoBribing'):
-#     plot_all_vars(data, param)
-#     plt.show()
+for param in ('Bribing', 'NoBribing'):
+    plot_all_vars(data, param)
+    plt.savefig('downloads/LSA.png', dpi = 300)
+    plt.show()
 
 #RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
 def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_prosecution, memory_size, cost_complain, penalty_citizen_prosecution, jail_cost_factor, citizen_complain_memory_discount_factor, bribe_amount, max_steps, model_reporters):
@@ -142,9 +143,14 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         ax.grid(True, zorder=-5)
         plt.show()
 
-    for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
-         plot_dist(data, label)
+    def qq_plot(data, data_name):
+        sm.qqplot(data, line='s',marker='.', markerfacecolor='k', markeredgecolor='k', alpha=0.3)
+        plt.title(data_name)
+        plt.show()
 
+    for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
+        plot_dist(data, label)
+        qq_plot(data, label)
 
 model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
                       memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
