@@ -41,15 +41,15 @@ for i, var in enumerate(problem['names']):
     if var in integer_vars:
         samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
 
-    batch = BatchRunner(Corruption,
-                        max_steps=max_steps,
-                        iterations=replicates,
-                        variable_parameters={var: samples},
-                        model_reporters=model_reporters,
-                        display_progress=True)
-
-    batch.run_all()
-    data[var] = batch.get_model_vars_dataframe()
+    # batch = BatchRunner(Corruption,
+    #                     max_steps=max_steps,
+    #                     iterations=replicates,
+    #                     variable_parameters={var: samples},
+    #                     model_reporters=model_reporters,
+    #                     display_progress=True)
+    #
+    # batch.run_all()
+    # data[var] = batch.get_model_vars_dataframe()
 
 
 def plot_param_var_conf(df, var, param, i):
@@ -89,17 +89,16 @@ def plot_all_vars(df, param):
 
 # Visualise the results of Local Sensitivity Analysis
 
-for param in ('Bribing', 'NoBribing'):
-    plot_all_vars(data, param)
-    plt.savefig('downloads/LSA.png', dpi = 300)
-    plt.show()
+# for param in ('Bribing', 'NoBribing'):
+#     plot_all_vars(data, param)
+#     plt.savefig('downloads/LSA.png', dpi = 300)
+#     plt.show()
 
 # RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
 def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_prosecution, memory_size,
                           cost_complain, penalty_citizen_prosecution, jail_cost_factor,
                           citizen_complain_memory_discount_factor, bribe_amount, max_steps, model_reporters):
 
-    data_fixed = {}
 
     batch_fixed = FixedBatchRunner(Corruption,
                                    parameters_list=[
@@ -111,7 +110,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
                                         'jail_cost_factor':jail_cost_factor,
                                         'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
                                         'bribe_amount':bribe_amount}],
-                                   iterations=120,
+                                   iterations=200,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
     batch_fixed.run_all()
@@ -127,7 +126,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         # Plot the histogram
         ax.hist(
         data,
-        bins=20,
+        bins=25,
         density=True,
         label="Histogram from samples",
         zorder=5,
@@ -158,83 +157,246 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         plot_dist(data, label)
         qq_plot(data, label)
 # Run the baseline model by running the function above
-model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
-                      memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
-                      citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
-                      model_reporters=model_reporters)
+# model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
+#                       memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
+#                       citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
+#                       model_reporters=model_reporters)
 
 # Global Sensitivity Analysis
-replicates_global = 10
-max_steps_global = 130
-distinct_samples_global = 10
+# replicates_global = 15
+# max_steps_global = 130
+# distinct_samples_global = 15
+#
+# # We get all our samples here
+# param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
+#
+# batch_global = BatchRunner(Corruption,
+#                            max_steps=max_steps_global,
+#                            variable_parameters={name:[] for name in problem['names']},
+#                            model_reporters=model_reporters)
+#
+# count = 0
+# data_global = pd.DataFrame(index=range(replicates_global*len(param_values)),
+#                            columns= problem['names'])
+# data_global['Run'], data_global['Bribe'], data_global['NoBribe'] = None, None, None
+#
+# for i in range(replicates_global):
+#     for vals in param_values:
+#         # Change parameters that should be integers
+#         vals = list(vals)
+#         vals[0] = int(vals[0])
+#         vals[2] = int(vals[2])
+#         vals[4] = int(vals[4])
+#         # Transform to dict with parameter names and their values
+#         variable_parameters = {}
+#         for name, val in zip(problem['names'], vals):
+#             variable_parameters[name] = val
+#
+#         batch_global.run_iteration(variable_parameters, tuple(vals), count)
+#         iteration_data = batch_global.get_model_vars_dataframe().iloc[count]
+#         iteration_data['Run'] = count
+#         data_global.iloc[count, 0:10] = vals
+#         data_global.iloc[count, 10:13] = iteration_data
+#         count += 1
+#
+#         print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
+#
+# Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
+# Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
+#
+# def plot_index(s, params, i, title=''):
+#     """
+#     Creates a plot for Sobol sensitivity analysis that shows the contributions
+#     of each parameter to the global sensitivity.
+#
+#     Args:
+#         s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
+#             the values for a set of parameters
+#         params (list): the parameters taken from s
+#         i (str): string that indicates what order the sensitivity is.
+#         title (str): title for the plot
+#     """
+#
+#
+#     indices = s['S' + i]
+#     errors = s['S' + i + '_conf']
+#     plt.figure()
+#
+#     l = len(indices)
+#
+#     plt.title(title)
+#     plt.ylim([-0.2, len(indices) - 1 + 0.2])
+#     plt.yticks(range(l), params)
+#     plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
+#     plt.axvline(0, c='k')
+#
+#
+# for Si in (Si_bribe, Si_nobribe):
+#     # First order
+#     plot_index(Si, problem['names'], '1', 'First order sensitivity')
+#     plt.show()
+#
+#     # Total order
+#     plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
+#     plt.show()
 
-# We get all our samples here
-param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
+import copy
+from scipy import stats
 
-batch_global = BatchRunner(Corruption,
-                    max_steps=max_steps_global,
-                    variable_parameters={name:[] for name in problem['names']},
-                    model_reporters=model_reporters)
+# Implementing the PAWN Sensitivity Analysis Technique
 
-count = 0
-data_global = pd.DataFrame(index=range(replicates_global*len(param_values)),
-                                columns= problem['names'])
-data_global['Run'], data_global['Bribe'], data_global['NoBribe'] = None, None, None
-
-for i in range(replicates_global):
-    for vals in param_values:
-        # Change parameters that should be integers
-        vals = list(vals)
-        vals[2] = int(vals[2])
-        # Transform to dict with parameter names and their values
-        variable_parameters = {}
-        for name, val in zip(problem['names'], vals):
-            variable_parameters[name] = val
-
-        batch_global.run_iteration(variable_parameters, tuple(vals), count)
-        iteration_data = batch_global.get_model_vars_dataframe().iloc[count]
-        iteration_data['Run'] = count
-        data_global.iloc[count, 0:10] = vals
-        data_global.iloc[count, 10:13] = iteration_data
-        count += 1
-
-        print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
-
-Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
-Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
-
-def plot_index(s, params, i, title=''):
-    """
-    Creates a plot for Sobol sensitivity analysis that shows the contributions
-    of each parameter to the global sensitivity.
-
-    Args:
-        s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
-            the values for a set of parameters
-        params (list): the parameters taken from s
-        i (str): string that indicates what order the sensitivity is.
-        title (str): title for the plot
-    """
+# At first, we sample values for every parameter, and run the model.
+# Nu is the number of random samples of inputs 'X'.
+Nu = 200
+# Nc is the number of the random samples of inputs 'X~i'
+Nc = 180
+# M is the number of random samples to be used as conditioning values for 'Xi'.
+M = 20
 
 
-    indices = s['S' + i]
-    errors = s['S' + i + '_conf']
-    plt.figure()
+def PAWN_implementation(Nu, Nc, M, problem):
+    integer_vars = ['team_size', 'jail_time', 'memory_size']
+    Nu_samples = {}
+    Nc_samples = {}
+    M_samples = {}
+    #reset = {}
+    bribe_amount = []
+    F_y = []
 
-    l = len(indices)
+    ks_list = []
+    ks_parameters_total = {}
+    ks_parameters_lists = {}
 
-    plt.title(title)
-    plt.ylim([-0.2, len(indices) - 1 + 0.2])
-    plt.yticks(range(l), params)
-    plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
-    plt.axvline(0, c='k')
+    def ecdf(a):
+        """
+        Function that takes as input argument a list of values,
+        and generates as output a list that represents
+        the Empirical Cumulative Distribution Function(ECDF)
+        of the given initial list.
+        """
+        x, counts = np.unique(a, return_counts=True)
+        cusum = np.cumsum(counts)
+        return x, cusum / cusum[-1]
+
+    def plot_ecdf(data_dict, unconditional, xlabel):
+        """
+        Function that takes as input argument a dictionary of values.
+        That dictionary will be used to plot the conditional CDFs, while we also
+        give as input argument the unconditional CDF.
+
+        The function plots these ECDFs in one figure, per parameter.
+        """
+        i = 0
+        for label, data in data_dict.items():
+            i += 1
+            # Compute the ECDF of the data.
+            x, y = ecdf(data)
+            x = np.insert(x, 0, x[0])
+            y = np.insert(y, 0, 0.)
+            # Plot the computed conditional ECDF
+            if i == 1:
+                plt.plot(x, y, drawstyle='steps-post', color='black', label='Conditional CDFs')
+            else:
+                plt.plot(x, y, drawstyle='steps-post', color='black')
+        # Plot the unconditional ECDF
+        x1, y1 = ecdf(unconditional)
+        x1 = np.insert(x, 0, x[0])
+        y1 = np.insert(y, 0, 0.)
+        plt.plot(x1, y1, drawstyle='steps-post', label='Unconditional CDF', color='red')
+        plt.grid(True)
+        plt.legend()
+        plt.xlabel(xlabel)
+        plt.title('Conditional and Unconditional CDFs')
+
+    # Generate Nu random samples of inputs and evaluate the model.
+    # The evaluation of the model results in the unconditional distribution of the model ouputs, F(y)
+    for i, var in enumerate(problem['names']):
+        Nu_samples[var] = np.random.uniform(*problem['bounds'][i], Nu)
+        Nc_samples[var] = np.random.uniform(*problem['bounds'][i], Nc)
+        M_samples[var] = np.random.uniform(*problem['bounds'][i], M)
+        if var in integer_vars:
+            Nu_samples[var] = np.random.randint(*problem['bounds'][i], Nu)
+            Nc_samples[var] = np.random.randint(*problem['bounds'][i], Nc)
+            M_samples[var] = np.random.randint(*problem['bounds'][i], M)
+
+    # Evaluate the model for all these samples.
+    # This results to the Unconditional CDF, F(y) - everything is sampled
+    for i in range(Nu):
+        batch_fy = FixedBatchRunner(Corruption,
+                                    parameters_list=[{'team_size': Nu_samples['team_size'][i],
+                                                      'rationality_of_agents': Nu_samples['rationality_of_agents'][i],
+                                                      'jail_time': Nu_samples['jail_time'][i],
+                                                      'prob_of_prosecution': Nu_samples['prob_of_prosecution'][i],
+                                                      'memory_size': Nu_samples['memory_size'][i],
+                                                      'cost_complain': Nu_samples['cost_complain'][i],
+                                                      'penalty_citizen_prosecution': Nu_samples['penalty_citizen_prosecution'][i],
+                                                      'jail_cost_factor': Nu_samples['jail_cost_factor'][i],
+                                                      'citizen_complain_memory_discount_factor': Nu_samples['citizen_complain_memory_discount_factor'][i],
+                                                      'bribe_amount': Nu_samples['bribe_amount'][i]}],
+                                    iterations=1,
+                                    max_steps=max_steps,
+                                    model_reporters=model_reporters)
+        batch_fy.run_all()
+        intermed = batch_fy.get_model_vars_dataframe()
+        F_y.append(intermed["Bribing"].values[0])
+
+    # Create the data for the conditional CDFs
+    testi = {}
+    for i, var in enumerate(problem['names']):
+        testi[f'Variable {var}'] = {}
+        reset = copy.deepcopy(Nc_samples)
+        for j in range(M):
+            reset[var] = np.ones(len(reset[var])) * M_samples[var][j]
+            testi[f'Variable {var}'][f'Conditioning value nr {j}'] = {}
+            # Evaluate the model.
+            # By doing that we get the model outputs, when a parameter is fixed and the others are sampled.
+            # Hence we can form the conditional CDFs.
+            for k in range(len(reset[var])):
+                batch_fixed = FixedBatchRunner(Corruption,
+                                               parameters_list=[{'team_size': int(reset['team_size'][k]),
+                                                                 'rationality_of_agents':
+                                                                     reset['rationality_of_agents'][k],
+                                                                 'jail_time': reset['jail_time'][k],
+                                                                 'prob_of_prosecution':
+                                                                     reset['prob_of_prosecution'][k],
+                                                                 'memory_size': reset['memory_size'][k],
+                                                                 'cost_complain': reset['cost_complain'][k],
+                                                                 'penalty_citizen_prosecution':
+                                                                     reset['penalty_citizen_prosecution'][k],
+                                                                 'jail_cost_factor': reset['jail_cost_factor'][k],
+                                                                 'citizen_complain_memory_discount_factor': reset[
+                                                                     'citizen_complain_memory_discount_factor'][k],
+                                                                 'bribe_amount': reset['bribe_amount'][k]}],
+                                               iterations=1,
+                                               max_steps=max_steps,
+                                               model_reporters=model_reporters,
+                                               display_progress=False)
+                batch_fixed.run_all()
+                data_fixed = batch_fixed.get_model_vars_dataframe()
+                bribe_amount.append(data_fixed["Bribing"].values[0])
+                if k == (len(reset[var]) - 1):
+                    testi[f'Variable {var}'][f'Conditioning value nr {j}'] = bribe_amount
+                    bribe_amount = []
+            # Fill in the dictionaries needed for visualisation of the results
+            ks_stat = stats.ks_2samp(F_y, testi[f'Variable {var}'][f'Conditioning value nr {j}']).statistic
+            ks_list.append(ks_stat)
+            if j == len(range(M - 1)):
+                ks_parameters_total[f'T_i of variable {var}'] = np.mean(ks_list)
+                ks_parameters_lists[f'List of variable {var}'] = ks_list
+                ks_list = []
+        # Plot the KS statistics and the 'Ti'- PAWN index per parameter.
+        plt.figure()
+        plt.title('KS statistics and T_i index(PAWN Index)')
+        plt.plot(ks_parameters_lists[f'List of variable {var}'], 'o', label='KS statistics for each conditioning value')
+        plt.plot(ks_parameters_lists[f'List of variable {var}'])
+        plt.xlabel(var)
+        plt.axhline(ks_parameters_total[f'T_i of variable {var}'], label='mean of KS (index T_i)', color='black')
+        plt.ylabel('KS Statistic')
+        plt.legend()
+        plt.ylim(0, 1)
+        # Plot the conditional and unconditional CDFs
+        plt.figure()
+        plot_ecdf(testi[f'Variable {var}'], F_y, var)
 
 
-for Si in (Si_bribe, Si_nobribe):
-    # First order
-    plot_index(Si, problem['names'], '1', 'First order sensitivity')
-    plt.show()
-
-    # Total order
-    plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
-    plt.show()
+PAWN_implementation(Nu, Nc, M, problem)
