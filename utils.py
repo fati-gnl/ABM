@@ -47,3 +47,21 @@ class CopActions(Enum):
     """
     bribe = 0
     not_bribe = 1
+
+
+class CopMemoryInitial(Enum):
+    """
+    The value for the Accepting bribe memory initialization. Depending on how Cop is we have different vals.
+    """
+    Corrupt = 1.0
+    Indifferent = 0.5
+    Honest = 0.0
+
+
+class CitizenMemoryInitial(Enum):
+    """
+    The value for how succesful is complaining. Depending on the system, citizen will have different experiences. Assuming that if system is honest they had nice memories.
+    """
+    Corrupt = 0.0
+    Indifferent = 0.5
+    Honest = 1.0

@@ -11,8 +11,8 @@ class Citizen(Agent):
                  unique_id,
                  model,
                  cost_accept_mean_std: Tuple[float, float],
-                 prone_to_complain: float,
                  complain_memory_discount_factor: float,
+                 prone_to_complain: float = 0.5,
                  first_action: str = None
                  ):
         super().__init__(unique_id, model)
