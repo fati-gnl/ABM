@@ -3,5 +3,4 @@
 .idea/misc.xml
 __pycache__/
 
-**/.idea/workspace.xml
-**/.idea/tasks.xml
+**/.idea/*.xml
