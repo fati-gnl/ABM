@@ -231,7 +231,7 @@ class Corruption(Model):
         """
         Logs data in the beginning. Model params and each agent params. Saves it self.log_path at init_params key.
         """
-        data_dir = Path("data/")
+        data_dir = Path("results/")
         data_dir.mkdir(exist_ok=True)
         self.log_path = Path(data_dir, self.experiment_name + '.json')
 
