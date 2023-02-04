@@ -190,7 +190,8 @@ class Corruption(Model):
             # Allocate not corrupted cops
             for other_cops in range(self.team_size - number_of_corrupt_cops_in_this_team):
                 # random because some are indifferent and some are honest
-                cop_id = self.lookup_corrupt_cops["other"].pop(random.randint(0, len(self.lookup_corrupt_cops["other"])))
+                cop_id = self.lookup_corrupt_cops["other"].pop(
+                    random.randint(0, len(self.lookup_corrupt_cops["other"])))
                 self.id_team[cop_id] = team_name
 
         for team_number in range(self.number_of_corrupted_teams, self.number_of_teams):
@@ -200,7 +201,7 @@ class Corruption(Model):
             # Allocate not corrupted cops
             for other_cops in range(self.team_size):
                 # random because some are indifferent and some are honest
-                indx = random.randint(0, len(self.lookup_corrupt_cops["other"])-1)
+                indx = random.randint(0, len(self.lookup_corrupt_cops["other"]) - 1)
                 cop_id = self.lookup_corrupt_cops["other"].pop(indx)
                 self.id_team[cop_id] = team_name
 

@@ -70,12 +70,13 @@ class Citizen(Agent):
          0 is when only last experience is important. 1 - all experiences are weighted the same
         :param update: complain event result, 0 - cop is not caught, 1 - cop is caught
         """
-        old_complain_memory_sum_weights=  self.complain_memory_accumulated_weights
-        self.complain_memory_accumulated_weights = self.complain_memory_accumulated_weights*self.discount_factor + 1
+        old_complain_memory_sum_weights = self.complain_memory_accumulated_weights
+        self.complain_memory_accumulated_weights = self.complain_memory_accumulated_weights * self.discount_factor + 1
         old_mean_rate = (old_complain_memory_sum_weights) / self.complain_memory_accumulated_weights
 
         self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_accumulated_weights
-        assert self.complain_memory <=1.0 or self.complain_memory >=0.0, ("Complain memory is out of proper range! "+ str(self.complain_memory))
+        assert self.complain_memory <= 1.0 or self.complain_memory >= 0.0, (
+                    "Complain memory is out of proper range! " + str(self.complain_memory))
 
 
 class Cop(Agent):
