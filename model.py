@@ -2,6 +2,7 @@ import json
 import math
 import random
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
@@ -44,14 +45,26 @@ class Corruption(Model):
         now = datetime.now()  # current date and time
         self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
 
+        # saving everything, then it can be logged
+        self.bribe_amount = bribe_amount
+        self.initial_time_left_in_jail = initial_time_left_in_jail
+        self.cost_accept_mean_std = cost_accept_mean_std
+        self.moral_commitment_mean_std = moral_commitment_mean_std
+        self.citizen_complain_memory_discount_factor = citizen_complain_memory_discount_factor
+        self.prob_of_prosecution = prob_of_prosecution
+        self.memory_size = memory_size
+        self.cost_complain = cost_complain
+        self.penalty_citizen_prosecution = penalty_citizen_prosecution
+        self.fine_amount = fine_amount
+        self.rationality_of_agents = rationality_of_agents
         self.num_citizens = num_citizens
         self.num_cops = num_cops
-
+        # cops calculations
         self.num_indifferent_cops = int(initial_indifferent_corruption_honest_rate[0] * num_cops)
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
         self.num_honest_cops = int(initial_indifferent_corruption_honest_rate[2] * num_cops)
         self.num_honest_cops += self.num_cops - (self.num_corrupted_cops + self.num_honest_cops + self.num_honest_cops)
-
+        # citizen calculations
         self.num_indifferent_citizens = int(initial_indifferent_corruption_honest_rate[0] * num_citizens)
         self.num_corrupted_citizens = int(initial_indifferent_corruption_honest_rate[1] * num_citizens)
         self.num_honest_citizens = int(initial_indifferent_corruption_honest_rate[2] * num_citizens)
@@ -64,95 +77,28 @@ class Corruption(Model):
         # how many iterations cop is inactive
         self.jail_time = jail_time
         # actual cost that cop takes into consideration in the utility function
-        self.jail_cost = jail_cost_factor * jail_time
-
-        self.prob_of_prosecution = prob_of_prosecution
-        self.memory_size = memory_size
-        self.cost_complain = cost_complain
-        self.penalty_citizen_prosecution = penalty_citizen_prosecution
-        self.fine_amount = fine_amount
-        self.rationality_of_agents = rationality_of_agents
-
-        # Initialise schedulers
-        self.schedule = BaseScheduler(self)
-        self.schedule_Cop = BaseScheduler(self)
+        self.jail_cost_factor = jail_cost_factor
+        self.jail_cost = self.jail_cost_factor * jail_time
 
         assert sum(
             [rate for rate in initial_indifferent_corruption_honest_rate]) == 1.0, "Distribution should sum up to 1."
 
         # Checking if the value isn't to small, if it is set it to minimum
+        self.corruption_among_teams_spread = corruption_among_teams_spread
         self.number_of_corrupted_teams = math.ceil(max(corruption_among_teams_spread * self.number_of_teams,
                                                        initial_indifferent_corruption_honest_rate[
                                                            1] * num_cops / self.team_size))
-
-        # Add agents to schedulers
-        for i in range(num_citizens):
-
-            # citizen_initial_prone_to_complain = citizen_initial_prone_to_complain
-            if i < self.num_indifferent_citizens:
-                # indifferent
-                citizen_initial_prone_to_complain = CitizenMemoryInitial.Indifferent.value
-            elif i < self.num_indifferent_citizens + self.num_corrupted_citizens:
-                citizen_initial_prone_to_complain = CitizenMemoryInitial.Corrupt.value
-            else:
-                citizen_initial_prone_to_complain = CitizenMemoryInitial.Honest.value
-
-            citizen = Citizen(i,
-                              self,
-                              cost_accept_mean_std=cost_accept_mean_std,
-                              prone_to_complain=citizen_initial_prone_to_complain,
-                              complain_memory_discount_factor=citizen_complain_memory_discount_factor)
-            self.schedule.add(citizen)
-        self.lookup_corrupt_cops = defaultdict(list)
-        for i in range(num_cops):
-
-            if i < self.num_indifferent_cops:
-                # indifferent
-                accepted_bribe_memory_initial = CopMemoryInitial.Indifferent.value
-
-            elif i < self.num_indifferent_cops + self.num_honest_cops:
-                accepted_bribe_memory_initial = CopMemoryInitial.Corrupt.value
-
-            else:
-                accepted_bribe_memory_initial = CopMemoryInitial.Honest.value
-
-            cop = Cop(i,
-                      self,
-                      time_left_in_jail=initial_time_left_in_jail,
-                      accepted_bribe_memory_size=memory_size,
-                      bribe_amount=bribe_amount,
-                      moral_commitment_mean_std=moral_commitment_mean_std,
-                      accepted_bribe_memory_initial=accepted_bribe_memory_initial)
-            self.schedule_Cop.add(cop)
-            self.lookup_corrupt_cops[
-                "corrupt" if accepted_bribe_memory_initial == CopMemoryInitial.Corrupt.value else "other"].append(i)
-
+        # Initialise schedulers
+        self.schedule = BaseScheduler(self)
+        self.schedule_Cop = BaseScheduler(self)
+        self.init_agents()
         # Data collector to be able to save the data
-        self.datacollector = DataCollector(
-            {"Prison Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
-                                            cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
-             "Bribing": lambda m: sum([1 for cop in self.cops_playing if
-                                       cop.action == CopActions.bribe]) / sum([1 for cop in self.schedule_Cop.agents if
-                                                                               cop.time_left_in_jail == 0]),
-             "AcceptComplain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                             cit.action == CitizenActions.accept_complain]) / self.num_active_citizens() or 0,
-             "Reject_Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                              cit.action == CitizenActions.reject_complain]) / self.num_active_citizens() or 0,
-             "Accept_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                            cit.action == CitizenActions.accept_silent]) / self.num_active_citizens() or 0,
-             "Reject_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                            cit.action == CitizenActions.reject_silent]) / self.num_active_citizens() or 0,
-             "Total Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                             cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain
-                                                                             ]) / self.num_active_citizens() or 0,
-             "Total Accept": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
-                                                                           cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent
-                                                                           ]) / self.num_active_citizens() or 0,
-             })
+        self.datacollector = self.get_server_data_collector()
 
         # Divide the cops over a network of teams
         self.create_network()
-        # Should be after all initializations as it saves all params
+
+        # Should be after all initializations as it saves all params!
         self.init_logger()
 
     def step(self):
@@ -166,6 +112,47 @@ class Corruption(Model):
         self.update_network()
         self.log_data(self.schedule.steps)
 
+    def init_agents(self):
+        # Add agents to schedulers
+        for i in range(self.num_citizens):
+
+            # citizen_initial_prone_to_complain = citizen_initial_prone_to_complain
+            if i < self.num_indifferent_citizens:
+                # indifferent
+                citizen_initial_prone_to_complain = CitizenMemoryInitial.Indifferent.value
+            elif i < self.num_indifferent_citizens + self.num_corrupted_citizens:
+                citizen_initial_prone_to_complain = CitizenMemoryInitial.Corrupt.value
+            else:
+                citizen_initial_prone_to_complain = CitizenMemoryInitial.Honest.value
+
+            citizen = Citizen(i,
+                              self,
+                              cost_accept_mean_std=self.cost_accept_mean_std,
+                              prone_to_complain=citizen_initial_prone_to_complain,
+                              complain_memory_discount_factor=self.citizen_complain_memory_discount_factor)
+            self.schedule.add(citizen)
+        # needed for assigning to teams
+        self.lookup_corrupt_cops = defaultdict(list)
+        for i in range(self.num_cops):
+            if i < self.num_indifferent_cops:
+                # indifferent
+                accepted_bribe_memory_initial = CopMemoryInitial.Indifferent.value
+            elif i < self.num_indifferent_cops + self.num_honest_cops:
+                accepted_bribe_memory_initial = CopMemoryInitial.Corrupt.value
+            else:
+                accepted_bribe_memory_initial = CopMemoryInitial.Honest.value
+
+            cop = Cop(i,
+                      self,
+                      time_left_in_jail=self.initial_time_left_in_jail,
+                      accepted_bribe_memory_size=self.memory_size,
+                      bribe_amount=self.bribe_amount,
+                      moral_commitment_mean_std=self.moral_commitment_mean_std,
+                      accepted_bribe_memory_initial=accepted_bribe_memory_initial)
+            self.schedule_Cop.add(cop)
+            self.lookup_corrupt_cops[
+                "corrupt" if accepted_bribe_memory_initial == CopMemoryInitial.Corrupt.value else "other"].append(i)
+
     def get_citizen(self):
         """
         Get the citizen chosen citizens and give them to the cop.
@@ -178,7 +165,12 @@ class Corruption(Model):
 
     def create_network(self):
         """
-        Create network of police officers. They form not intersecting groups of team_size
+        Create network of police officers. They form not intersecting groups of team_size.
+        The amount of bribing cops depend on the `initial_indifferent_corruption_honest_rate`
+         and how many in each team `corruption_among_teams_spread`.
+
+        NOTE: indifferent and honest cops are treated the same here. First corrupted cops are allocated and then non-corrupt.
+        They're allocated randomly. You can set indifferent rate or the honest rate to 0 and then be sure.
         """
 
         # depending on this check rate of corruption in the team, maybe if none do it totally randomly?
@@ -189,6 +181,7 @@ class Corruption(Model):
         # Initialise the dictionaries to convert the cop_id to team name, and to convert team name to #cops in jail
         self.id_team = defaultdict(str)
         self.team_jailed = defaultdict(int)
+        # Corrupted teams first
         for team_number in range(self.number_of_corrupted_teams):
             team_name = "team_" + str(team_number)
             self.team_jailed[team_name] = 0
@@ -204,7 +197,7 @@ class Corruption(Model):
                 cop_id = self.lookup_corrupt_cops["other"].pop(
                     random.randint(0, len(self.lookup_corrupt_cops["other"]) - 1))
                 self.id_team[cop_id] = team_name
-
+        # Not Corrupted teams
         for team_number in range(self.number_of_corrupted_teams, self.number_of_teams):
             team_name = "team_" + str(team_number)
             self.team_jailed[team_name] = 0
@@ -234,48 +227,81 @@ class Corruption(Model):
             self.team_jailed[team] += 1 if cop.time_left_in_jail > 0 else 0
 
     def init_logger(self):
+        """
+        Logs data in the beginning. Model params and each agent params. Saves it self.log_path at init_params key.
+        """
         data_dir = Path("data/")
         data_dir.mkdir(exist_ok=True)
         self.log_path = Path(data_dir, self.experiment_name + '.json')
-        f = open(self.log_path, 'w')
-        # save all init parameters
-        log_dict = defaultdict(dict)
-        log_dict['init_params'] = vars(self).copy()
-        log_dict['init_params'].pop('random', None)
-        log_dict['init_params'].pop('running', None)
-        log_dict['init_params'].pop('current_id', None)
-        log_dict['init_params'].pop('experiment_name', None)
-        log_dict['init_params'].pop('log_path', None)
-        log_dict['init_params'].pop('schedule', None)
-        log_dict['init_params'].pop('schedule_Cop', None)
-        log_dict['init_params'].pop('datacollector', None)
-        log_dict['init_params'].pop('lookup_corrupt_cops', None)
-        # add agents stats
-        log_dict['init_params']['citizens'] = {}
-        log_dict['init_params']['cops'] = {}
-        for cit in self.schedule.agents:
-            log_dict['init_params']['citizens'][cit.unique_id] = cit.log_data()
 
-        for cop in self.schedule_Cop.agents:
-            log_dict['init_params']['cops'][cop.unique_id] = cop.log_data()
+        with open(self.log_path, 'w') as f:
+            # save all init parameters
+            log_dict = defaultdict(dict)
+            name = 'init_params'
+            log_dict = self.get_log_data(name, log_dict)
 
-        json.dump(log_dict, f)
-
-        f.close()
+            json.dump(log_dict, f)
 
     def log_data(self, step):
-        f = open(self.log_path, 'a')
-        # f.create_dataset('iteration_' + str(step))
-        # save all params at this step
-        # num of cops bribing
-        # num of cops in jail
-        # stats for citizen actions
+        """
+        Logs data in each step. Model params and each agent params. Saves it self.log_path at iteration_step key.
+        :param step: current iteration
+        """
 
-        # memory value of citizens
-        # memory value of cops
+        with open(self.log_path, 'r') as f:
+            log_dict = json.load(f)
+        name = 'iteration_' + str(step)
+        log_dict = self.get_log_data(name, log_dict)
 
-        # teams statistics:
-        # jail
-        # bribing
+        with open(self.log_path, 'w') as f:
+            json.dump(log_dict, f)
 
-        f.close()
+    def get_log_data(self, key_step: str, log_dict: dict) -> dict:
+        """
+        Collects data from class fields, throws away unnecessary fields or such that are not easily serializable.
+        :return: dict with data
+        """
+
+        log_dict[key_step] = deepcopy(vars(self))
+        log_dict[key_step].pop('random', None)
+        log_dict[key_step].pop('running', None)
+        log_dict[key_step].pop('current_id', None)
+        log_dict[key_step].pop('experiment_name', None)
+        log_dict[key_step].pop('log_path', None)
+        log_dict[key_step].pop('schedule', None)
+        log_dict[key_step].pop('schedule_Cop', None)
+        log_dict[key_step].pop('datacollector', None)
+        log_dict[key_step].pop('lookup_corrupt_cops', None)
+
+        # add agents stats
+        log_dict[key_step]['citizens'] = {}
+        log_dict[key_step]['cops'] = {}
+        for cit in self.schedule.agents:
+            log_dict[key_step]['citizens'][cit.unique_id] = cit.log_data()
+
+        for cop in self.schedule_Cop.agents:
+            log_dict[key_step]['cops'][cop.unique_id] = cop.log_data()
+        return log_dict
+
+    def get_server_data_collector(self):
+        return DataCollector(
+            {"Prison Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
+                                            cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
+             "Bribing": lambda m: sum([1 for cop in self.cops_playing if
+                                       cop.action == CopActions.bribe]) / sum([1 for cop in self.schedule_Cop.agents if
+                                                                               cop.time_left_in_jail == 0]),
+             "AcceptComplain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                             cit.action == CitizenActions.accept_complain]) / self.num_active_citizens() or 0,
+             "Reject_Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                              cit.action == CitizenActions.reject_complain]) / self.num_active_citizens() or 0,
+             "Accept_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                            cit.action == CitizenActions.accept_silent]) / self.num_active_citizens() or 0,
+             "Reject_Silent": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                            cit.action == CitizenActions.reject_silent]) / self.num_active_citizens() or 0,
+             "Total Complain": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                             cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.reject_complain
+                                                                             ]) / self.num_active_citizens() or 0,
+             "Total Accept": lambda m: self.num_active_citizens() and sum([1 for cit in self.schedule.agents if
+                                                                           cit.action == CitizenActions.accept_complain or cit.action == CitizenActions.accept_silent
+                                                                           ]) / self.num_active_citizens() or 0,
+             })

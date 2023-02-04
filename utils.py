@@ -10,7 +10,7 @@ def softmax(x: np.ndarray, lambda_: float) -> np.ndarray:
     This is logit equlibrium function https://en.wikipedia.org/wiki/Quantal_response_equilibrium#Logit_equilibrium
     This function is implemented so it's numerically stable.
     :param x: estimated payoffs for each action
-    :param lambda_: rationality factor. 0 - random, 1 - total rational
+    :param lambda_: rationality factor. 0 - random
     :return: computed softmax
     """
     x = x * lambda_
@@ -23,7 +23,7 @@ def sample_action(utilities: np.ndarray, possible_actions: Type[Enum], lambda_: 
     Sample action taking into considerations estimated utilities per each action.
     :param utilities: per each action estimated utility will be treated as distribution
     :param possible_actions: possible actions for this agent
-    :param lambda_: rationality factor. 0 - random, 1 - total rational
+    :param lambda_: rationality factor. 0 - random
     :return: action
     """
     distribution = softmax(utilities, lambda_)

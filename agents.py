@@ -77,16 +77,21 @@ class Citizen(Agent):
 
         self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_accumulated_weights
         assert self.complain_memory <= 1.0 or self.complain_memory >= 0.0, (
-                    "Complain memory is out of proper range! " + str(self.complain_memory))
+                "Complain memory is out of proper range! " + str(self.complain_memory))
 
-    def log_data(self)->dict:
+    def log_data(self) -> dict:
+        """
+        Creates a dictionary with all params of this agent
+        :return: dict with results
+        """
 
-        data= deepcopy(vars(self))
+        data = deepcopy(vars(self))
         data.pop('model', None)
         data.pop('pos', None)
         data.pop('possible_actions', None)
         data.pop('random', None)
         return data.copy()
+
 
 class Cop(Agent):
     def __init__(self, unique_id,
@@ -199,7 +204,12 @@ class Cop(Agent):
         :return: estimated probability of accepting the bribe by a citizen
         """
         return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
-    def log_data(self)->dict:
+
+    def log_data(self) -> dict:
+        """
+        Creates a dictionary with all params of this agent
+        :return: dict with results
+        """
 
         data = deepcopy(vars(self))
         data.pop('model', None)
