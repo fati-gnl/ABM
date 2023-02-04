@@ -44,6 +44,7 @@ class Corruption(Model):
 
         now = datetime.now()  # current date and time
         self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
+        print("Experiment name: ", self.experiment_name)
 
         # saving everything, then it can be logged
         self.bribe_amount = bribe_amount
@@ -256,31 +257,65 @@ class Corruption(Model):
         with open(self.log_path, 'w') as f:
             json.dump(log_dict, f)
 
-    def get_log_data(self, key_step: str, log_dict: dict) -> dict:
+    def get_log_data(self, name: str, log_dict: dict) -> dict:
         """
         Collects data from class fields, throws away unnecessary fields or such that are not easily serializable.
         :return: dict with data
         """
 
-        log_dict[key_step] = deepcopy(vars(self))
-        log_dict[key_step].pop('random', None)
-        log_dict[key_step].pop('running', None)
-        log_dict[key_step].pop('current_id', None)
-        log_dict[key_step].pop('experiment_name', None)
-        log_dict[key_step].pop('log_path', None)
-        log_dict[key_step].pop('schedule', None)
-        log_dict[key_step].pop('schedule_Cop', None)
-        log_dict[key_step].pop('datacollector', None)
-        log_dict[key_step].pop('lookup_corrupt_cops', None)
+        log_dict[name] = deepcopy(vars(self))
+        log_dict[name].pop('random', None)
+        log_dict[name].pop('running', None)
+        log_dict[name].pop('current_id', None)
+        log_dict[name].pop('experiment_name', None)
+        log_dict[name].pop('log_path', None)
+        log_dict[name].pop('schedule', None)
+        log_dict[name].pop('schedule_Cop', None)
+        log_dict[name].pop('datacollector', None)
+        log_dict[name].pop('lookup_corrupt_cops', None)
+        log_dict[name].pop('citizens_playing', None)
+        log_dict[name].pop('cops_playing', None)
+        if 'init' not in name:
+            # I'm removing those that shouldn't be changed in later steps or it wouldn't change anything if they were
+            # rest I left just in case
+            log_dict[name].pop('_seed', None)
+            log_dict[name].pop('initial_time_left_in_jail', None)
+            log_dict[name].pop('cost_accept_mean_std', None)
+            log_dict[name].pop('moral_commitment_mean_std', None)
+            log_dict[name].pop('fine_amount', None)
+            log_dict[name].pop('num_citizens', None)
+            log_dict[name].pop('num_cops', None)
+            log_dict[name].pop('num_indifferent_cops', None)
+            log_dict[name].pop('num_corrupted_cops', None)
+            log_dict[name].pop('num_honest_cops', None)
+            log_dict[name].pop('num_indifferent_citizens', None)
+            log_dict[name].pop('num_corrupted_citizens', None)
+            log_dict[name].pop('num_honest_citizens', None)
+            log_dict[name].pop('number_of_teams', None)
+            log_dict[name].pop('corruption_among_teams_spread', None)
+            log_dict[name].pop('number_of_corrupted_teams', None)
+
 
         # add agents stats
-        log_dict[key_step]['citizens'] = {}
-        log_dict[key_step]['cops'] = {}
+        log_dict[name]['citizens'] = {}
+        log_dict[name]['cops'] = {}
         for cit in self.schedule.agents:
-            log_dict[key_step]['citizens'][cit.unique_id] = cit.log_data()
+            log_dict[name]['citizens'][cit.unique_id] = cit.log_data()
+            if 'init' not in name:
+                log_dict[name]['citizens'][cit.unique_id].pop('cost_complain', None)
+                log_dict[name]['citizens'][cit.unique_id].pop('rationality', None)
+                log_dict[name]['citizens'][cit.unique_id].pop('fine_amount', None)
+                log_dict[name]['citizens'][cit.unique_id].pop('penalty_citizen_prosecution', None)
+                log_dict[name]['citizens'][cit.unique_id].pop('discount_factor', None)
 
         for cop in self.schedule_Cop.agents:
-            log_dict[key_step]['cops'][cop.unique_id] = cop.log_data()
+            log_dict[name]['cops'][cop.unique_id] = cop.log_data()
+            if 'init' not in name:
+                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
+                log_dict[name]['citizens'][cop.unique_id].pop('rationality', None)
+                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
+                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
+
         return log_dict
 
     def get_server_data_collector(self):

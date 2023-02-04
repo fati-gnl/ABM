@@ -7,6 +7,8 @@ from mesa import Agent
 from utils import CitizenActions, sample_action, CopActions
 
 
+
+
 class Citizen(Agent):
     def __init__(self,
                  unique_id,
@@ -19,12 +21,6 @@ class Citizen(Agent):
         super().__init__(unique_id, model)
 
         self.action = first_action
-
-        # params that are set in the model/from outside
-        self.cost_complain = self.model.cost_complain
-        self.rationality = self.model.rationality_of_agents
-        self.fine_amount = self.model.fine_amount
-        self.penalty_citizen_prosecution = self.model.penalty_citizen_prosecution
 
         # initialize moral costs
         self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
@@ -42,17 +38,17 @@ class Citizen(Agent):
 
         # complain_reward = bribe to make the # of params smaller
         utility_accept_complain = -bribe_amount + prob_success_complain * (
-                bribe_amount - self.penalty_citizen_prosecution) - self.cost_complain - self.cost_accept
+                bribe_amount - self.model.penalty_citizen_prosecution) - self.model.cost_complain - self.cost_accept
         utility_accept_silent = -bribe_amount - self.cost_accept
-        utility_reject_complain = -self.fine_amount - self.cost_complain
-        utility_reject_silent = -self.fine_amount
+        utility_reject_complain = -self.model.fine_amount - self.model.cost_complain
+        utility_reject_silent = -self.model.fine_amount
 
         utilities = np.array([utility_accept_complain,
                               utility_accept_silent,
                               utility_reject_complain,
                               utility_reject_silent])
 
-        self.action = sample_action(utilities, self.possible_actions, self.rationality)
+        self.action = sample_action(utilities, self.possible_actions, self.model.rationality_of_agents)
 
     def step(self):
         self.action = None
@@ -73,7 +69,7 @@ class Citizen(Agent):
         """
         old_complain_memory_sum_weights = self.complain_memory_accumulated_weights
         self.complain_memory_accumulated_weights = self.complain_memory_accumulated_weights * self.discount_factor + 1
-        old_mean_rate = (old_complain_memory_sum_weights) / self.complain_memory_accumulated_weights
+        old_mean_rate = old_complain_memory_sum_weights / self.complain_memory_accumulated_weights
 
         self.complain_memory = self.discount_factor * old_mean_rate * self.complain_memory + update / self.complain_memory_accumulated_weights
         assert self.complain_memory <= 1.0 or self.complain_memory >= 0.0, (
@@ -86,10 +82,12 @@ class Citizen(Agent):
         """
 
         data = deepcopy(vars(self))
+        data['action'] = data['action'].name if data['action'] is not None else data['action']
         data.pop('model', None)
         data.pop('pos', None)
         data.pop('possible_actions', None)
         data.pop('random', None)
+        data.pop('unique_id', None)
         return data.copy()
 
 
@@ -105,13 +103,13 @@ class Cop(Agent):
         super().__init__(unique_id, model)
 
         self.action = first_action
-        self.jail_cost = self.model.jail_cost
-        self.rationality = self.model.rationality_of_agents
         self.bribe_amount = bribe_amount
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
         self.accepted_bribe_memory = [accepted_bribe_memory_initial]
+        # for stats
+        self.estimated_prob_accept = self.approximate_prob_accept()
 
         self.moral_commitment = np.random.normal(loc=moral_commitment_mean_std[0], scale=moral_commitment_mean_std[1])
 
@@ -172,12 +170,12 @@ class Cop(Agent):
 
         # Calculate expected utilities for each action
         utility_bribe = (
-                                1 - approx_prob_caught) * approx_prob_accept * self.bribe_amount - approx_prob_caught * self.jail_cost
+                                1 - approx_prob_caught) * approx_prob_accept * self.bribe_amount - approx_prob_caught * self.model.jail_cost
         utility_not_bribe = self.moral_commitment
 
         utilities = np.array([utility_bribe, utility_not_bribe])
 
-        self.action = sample_action(utilities, self.possible_actions, self.rationality)
+        self.action = sample_action(utilities, self.possible_actions, self.model.rationality_of_agents)
 
     def approximate_prob_caught(self):
         """
@@ -203,7 +201,9 @@ class Cop(Agent):
         Takes the average of the attempts.
         :return: estimated probability of accepting the bribe by a citizen
         """
-        return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
+        # saving it here to have it in the logged data
+        self.estimated_prob_accept = sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
+        return self.estimated_prob_accept
 
     def log_data(self) -> dict:
         """
@@ -212,8 +212,10 @@ class Cop(Agent):
         """
 
         data = deepcopy(vars(self))
+        data['action'] = data['action'].name if data['action'] is not None else data['action']
         data.pop('model', None)
         data.pop('pos', None)
         data.pop('possible_actions', None)
         data.pop('random', None)
+        data.pop('unique_id', None)
         return data.copy()
