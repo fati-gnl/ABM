@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import List, Type, Tuple
 import numpy as np
 import numpy.random
@@ -78,6 +79,14 @@ class Citizen(Agent):
         assert self.complain_memory <= 1.0 or self.complain_memory >= 0.0, (
                     "Complain memory is out of proper range! " + str(self.complain_memory))
 
+    def log_data(self)->dict:
+
+        data= deepcopy(vars(self))
+        data.pop('model', None)
+        data.pop('pos', None)
+        data.pop('possible_actions', None)
+        data.pop('random', None)
+        return data.copy()
 
 class Cop(Agent):
     def __init__(self, unique_id,
@@ -190,3 +199,11 @@ class Cop(Agent):
         :return: estimated probability of accepting the bribe by a citizen
         """
         return sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
+    def log_data(self)->dict:
+
+        data = deepcopy(vars(self))
+        data.pop('model', None)
+        data.pop('pos', None)
+        data.pop('possible_actions', None)
+        data.pop('random', None)
+        return data.copy()

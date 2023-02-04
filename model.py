@@ -1,6 +1,9 @@
+import json
 import math
 import random
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -9,11 +12,13 @@ from mesa.time import BaseScheduler
 from agents import Citizen, Cop
 from utils import CitizenActions, CopActions, CitizenMemoryInitial, CopMemoryInitial
 
+import names_generator
+
 
 class Corruption(Model):
     def __init__(self,
-                 num_citizens=50000,
-                 num_cops=1000,
+                 num_citizens=50,
+                 num_cops=10,
                  team_size=10,
                  rationality_of_agents=10,  # 0 is random totally
                  jail_time=4,
@@ -35,6 +40,9 @@ class Corruption(Model):
                  ):
 
         super().__init__()
+
+        now = datetime.now()  # current date and time
+        self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
 
         self.num_citizens = num_citizens
         self.num_cops = num_cops
@@ -144,6 +152,8 @@ class Corruption(Model):
 
         # Divide the cops over a network of teams
         self.create_network()
+        # Should be after all initializations as it saves all params
+        self.init_logger()
 
     def step(self):
         self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.time_left_in_jail == 0]
@@ -154,6 +164,7 @@ class Corruption(Model):
 
         self.datacollector.collect(self)
         self.update_network()
+        self.log_data(self.schedule.steps)
 
     def get_citizen(self):
         """
@@ -191,7 +202,7 @@ class Corruption(Model):
             for other_cops in range(self.team_size - number_of_corrupt_cops_in_this_team):
                 # random because some are indifferent and some are honest
                 cop_id = self.lookup_corrupt_cops["other"].pop(
-                    random.randint(0, len(self.lookup_corrupt_cops["other"])))
+                    random.randint(0, len(self.lookup_corrupt_cops["other"]) - 1))
                 self.id_team[cop_id] = team_name
 
         for team_number in range(self.number_of_corrupted_teams, self.number_of_teams):
@@ -221,3 +232,50 @@ class Corruption(Model):
         for cop in self.schedule_Cop.agents:
             team = self.id_team[cop.unique_id]
             self.team_jailed[team] += 1 if cop.time_left_in_jail > 0 else 0
+
+    def init_logger(self):
+        data_dir = Path("data/")
+        data_dir.mkdir(exist_ok=True)
+        self.log_path = Path(data_dir, self.experiment_name + '.json')
+        f = open(self.log_path, 'w')
+        # save all init parameters
+        log_dict = defaultdict(dict)
+        log_dict['init_params'] = vars(self).copy()
+        log_dict['init_params'].pop('random', None)
+        log_dict['init_params'].pop('running', None)
+        log_dict['init_params'].pop('current_id', None)
+        log_dict['init_params'].pop('experiment_name', None)
+        log_dict['init_params'].pop('log_path', None)
+        log_dict['init_params'].pop('schedule', None)
+        log_dict['init_params'].pop('schedule_Cop', None)
+        log_dict['init_params'].pop('datacollector', None)
+        log_dict['init_params'].pop('lookup_corrupt_cops', None)
+        # add agents stats
+        log_dict['init_params']['citizens'] = {}
+        log_dict['init_params']['cops'] = {}
+        for cit in self.schedule.agents:
+            log_dict['init_params']['citizens'][cit.unique_id] = cit.log_data()
+
+        for cop in self.schedule_Cop.agents:
+            log_dict['init_params']['cops'][cop.unique_id] = cop.log_data()
+
+        json.dump(log_dict, f)
+
+        f.close()
+
+    def log_data(self, step):
+        f = open(self.log_path, 'a')
+        # f.create_dataset('iteration_' + str(step))
+        # save all params at this step
+        # num of cops bribing
+        # num of cops in jail
+        # stats for citizen actions
+
+        # memory value of citizens
+        # memory value of cops
+
+        # teams statistics:
+        # jail
+        # bribing
+
+        f.close()
