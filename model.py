@@ -16,7 +16,7 @@ import names_generator
 class Corruption(Model):
     def __init__(self,
                  num_citizens=500,
-                 num_cops=48,
+                 num_cops=100,
                  team_size=10,
                  rationality_of_agents=10,  # 0 is random totally
                  jail_time=4,

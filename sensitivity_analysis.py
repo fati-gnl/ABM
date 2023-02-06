@@ -38,8 +38,10 @@ for i, var in enumerate(problem['names']):
     samples = np.linspace(*problem['bounds'][i], num=distinct_samples)
     # Some parameters should have integer values. We change
     # the code to acommodate for this and sample only integers.
-    if var in integer_vars:
+    if var in integer_vars[1:]:
         samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
+    if var=='team_size':
+        samples = np.arange(10,51,10)
 
     # batch = BatchRunner(Corruption,
     #                     max_steps=max_steps,
@@ -157,11 +159,11 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
     for data, label in [(amount_bribe,"amount_bribe"),(amount_nobribe, "amount_nobribe")]:
         plot_dist(data, label)
         qq_plot(data, label)
-# Run the baseline model by running the function above
-# model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
-#                       memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
-#                       citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
-#                       model_reporters=model_reporters)
+#Run the baseline model by running the function above
+model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
+                      memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
+                      citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
+                      model_reporters=model_reporters)
 
 # Global Sensitivity Analysis
 # replicates_global = 15
@@ -241,18 +243,18 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
 #     plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
 #     plt.show()
 
-import copy
-from scipy import stats
-
-# Implementing the PAWN Sensitivity Analysis Technique
-
-# At first, we sample values for every parameter, and run the model.
-# Nu is the number of random samples of inputs 'X'.
-Nu = 200
-# Nc is the number of the random samples of inputs 'X~i'
-Nc = 180
-# M is the number of random samples to be used as conditioning values for 'Xi'.
-M = 20
+# import copy
+# from scipy import stats
+#
+# # Implementing the PAWN Sensitivity Analysis Technique
+#
+# # At first, we sample values for every parameter, and run the model.
+# # Nu is the number of random samples of inputs 'X'.
+# Nu = 200
+# # Nc is the number of the random samples of inputs 'X~i'
+# Nc = 180
+# # M is the number of random samples to be used as conditioning values for 'Xi'.
+# M = 20
 
 
 def PAWN_implementation(Nu, Nc, M, problem):
@@ -401,4 +403,4 @@ def PAWN_implementation(Nu, Nc, M, problem):
         plot_ecdf(testi[f'Variable {var}'], F_y, var)
 
 
-PAWN_implementation(Nu, Nc, M, problem)
+# PAWN_implementation(Nu, Nc, M, problem)
