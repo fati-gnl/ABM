@@ -109,7 +109,8 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
                                         'penalty_citizen_prosecution':penalty_citizen_prosecution,
                                         'jail_cost_factor':jail_cost_factor,
                                         'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
-                                        'bribe_amount':bribe_amount}],
+                                        'bribe_amount':bribe_amount,
+                                        'logger': False}],
                                    iterations=200,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
@@ -366,7 +367,8 @@ def PAWN_implementation(Nu, Nc, M, problem):
                                                                  'jail_cost_factor': reset['jail_cost_factor'][k],
                                                                  'citizen_complain_memory_discount_factor': reset[
                                                                      'citizen_complain_memory_discount_factor'][k],
-                                                                 'bribe_amount': reset['bribe_amount'][k]}],
+                                                                 'bribe_amount': reset['bribe_amount'][k],
+                                                                 'logger': False}],
                                                iterations=1,
                                                max_steps=max_steps,
                                                model_reporters=model_reporters,

@@ -5,21 +5,18 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler
-
 from agents import Citizen, Cop
 from utils import CitizenActions, CopActions, CitizenMemoryInitial, CopMemoryInitial
-
 import names_generator
 
 
 class Corruption(Model):
     def __init__(self,
-                 num_citizens=50,
-                 num_cops=10,
+                 num_citizens=500,
+                 num_cops=48,
                  team_size=10,
                  rationality_of_agents=10,  # 0 is random totally
                  jail_time=4,
@@ -35,16 +32,18 @@ class Corruption(Model):
                  bribe_amount=0.5,
                  moral_commitment_mean_std=(0.25, 0.1),
                  initial_time_left_in_jail=0,  # don't think it's worth to change that
-                 initial_indifferent_corruption_honest_rate=(0.8, 0.2, 0),
-                 corruption_among_teams_spread=1.0
+                 initial_indifferent_corruption_honest_rate=(1.0, 0.0, 0.0),
+                 corruption_among_teams_spread=1.0,
                  # rate of teams that should be getting the corrupted cops. 1 - all teams have the same amount(+-1 cop ofc)
+                 logger: bool = True
                  ):
 
         super().__init__()
 
         now = datetime.now()  # current date and time
-        self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
-        print("Experiment name: ", self.experiment_name)
+        if logger:
+            self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
+            print("Experiment name: ", self.experiment_name)
 
         # saving everything, then it can be logged
         self.bribe_amount = bribe_amount
@@ -60,6 +59,7 @@ class Corruption(Model):
         self.rationality_of_agents = rationality_of_agents
         self.num_citizens = num_citizens
         self.num_cops = num_cops
+        assert self.num_cops <= self.num_citizens, "There should be more citizens than cops!"
         # cops calculations
         self.num_indifferent_cops = int(initial_indifferent_corruption_honest_rate[0] * num_cops)
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
@@ -73,6 +73,8 @@ class Corruption(Model):
                 self.num_corrupted_citizens + self.num_honest_citizens + self.num_honest_citizens)
 
         self.team_size = team_size
+        assert self.num_cops % self.team_size == 0, \
+            f"You need to set num of cops to be dividable by team size. Each team should have the same size! Your num_cops: {self.num_cops}, teamsize: {self.team_size}"
         self.number_of_teams = math.ceil(self.num_cops / self.team_size)
 
         # how many iterations cop is inactive
@@ -99,8 +101,10 @@ class Corruption(Model):
         # Divide the cops over a network of teams
         self.create_network()
 
-        # Should be after all initializations as it saves all params!
-        self.init_logger()
+        self.logger = logger
+        if self.logger:
+            # Should be after all initializations as it saves all params!
+            self.init_logger()
 
     def step(self):
         self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.time_left_in_jail == 0]
@@ -111,7 +115,8 @@ class Corruption(Model):
 
         self.datacollector.collect(self)
         self.update_network()
-        self.log_data(self.schedule.steps)
+        if self.logger:
+            self.log_data(self.schedule.steps)
 
     def init_agents(self):
         # Add agents to schedulers
@@ -182,6 +187,7 @@ class Corruption(Model):
         # Initialise the dictionaries to convert the cop_id to team name, and to convert team name to #cops in jail
         self.id_team = defaultdict(str)
         self.team_jailed = defaultdict(int)
+        random.shuffle(self.lookup_corrupt_cops["other"])
         # Corrupted teams first
         for team_number in range(self.number_of_corrupted_teams):
             team_name = "team_" + str(team_number)
@@ -190,13 +196,11 @@ class Corruption(Model):
             number_of_corrupt_cops_in_this_team = corrupt_cop_per_team + (1 if team_number < surplas_modulo else 0)
             # First allocate corrupted cops
             for corrupted_cop in range(number_of_corrupt_cops_in_this_team):
-                cop_id = self.lookup_corrupt_cops["corrupt"].pop(0)
+                cop_id = self.lookup_corrupt_cops["corrupt"].pop()
                 self.id_team[cop_id] = team_name
             # Allocate not corrupted cops
             for other_cops in range(self.team_size - number_of_corrupt_cops_in_this_team):
-                # random because some are indifferent and some are honest
-                cop_id = self.lookup_corrupt_cops["other"].pop(
-                    random.randint(0, len(self.lookup_corrupt_cops["other"]) - 1))
+                cop_id = self.lookup_corrupt_cops["other"].pop()
                 self.id_team[cop_id] = team_name
         # Not Corrupted teams
         for team_number in range(self.number_of_corrupted_teams, self.number_of_teams):
@@ -275,6 +279,7 @@ class Corruption(Model):
         log_dict[name].pop('lookup_corrupt_cops', None)
         log_dict[name].pop('citizens_playing', None)
         log_dict[name].pop('cops_playing', None)
+        log_dict[name].pop('logger', None)
         if 'init' not in name:
             # I'm removing those that shouldn't be changed in later steps or it wouldn't change anything if they were
             # rest I left just in case
@@ -294,7 +299,6 @@ class Corruption(Model):
             log_dict[name].pop('number_of_teams', None)
             log_dict[name].pop('corruption_among_teams_spread', None)
             log_dict[name].pop('number_of_corrupted_teams', None)
-
 
         # add agents stats
         log_dict[name]['citizens'] = {}
