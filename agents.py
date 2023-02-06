@@ -7,8 +7,6 @@ from mesa import Agent
 from utils import CitizenActions, sample_action, CopActions
 
 
-
-
 class Citizen(Agent):
     def __init__(self,
                  unique_id,
@@ -81,13 +79,8 @@ class Citizen(Agent):
         :return: dict with results
         """
 
-        data = deepcopy(vars(self))
-        data['action'] = data['action'].name if data['action'] is not None else data['action']
-        data.pop('model', None)
-        data.pop('pos', None)
-        data.pop('possible_actions', None)
-        data.pop('random', None)
-        data.pop('unique_id', None)
+        data = {'action': self.action if self.action is None else self.action.name, 'cost_accept': self.cost_accept,
+                'complain_memory': self.complain_memory}
         return data.copy()
 
 
@@ -211,11 +204,10 @@ class Cop(Agent):
         :return: dict with results
         """
 
-        data = deepcopy(vars(self))
-        data['action'] = data['action'].name if data['action'] is not None else data['action']
-        data.pop('model', None)
-        data.pop('pos', None)
-        data.pop('possible_actions', None)
-        data.pop('random', None)
-        data.pop('unique_id', None)
-        return data.copy()
+        data = {'action': self.action if self.action is None else self.action.name, 'bribe_amount': self.bribe_amount,
+                'time_left_in_jail': self.time_left_in_jail,
+                'accepted_bribe_memory_size': self.accepted_bribe_memory_size,
+                'accepted_bribe_memory': self.accepted_bribe_memory.copy(),
+                'estimated_prob_accept': self.estimated_prob_accept, 'moral_commitment': self.moral_commitment,
+                'approximated_prob_caught': self.approximate_prob_caught()}
+        return data

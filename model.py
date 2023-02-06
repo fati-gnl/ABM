@@ -1,6 +1,7 @@
 import json
 import math
 import random
+import time
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
@@ -15,7 +16,7 @@ import names_generator
 
 class Corruption(Model):
     def __init__(self,
-                 num_citizens=500,
+                 num_citizens=100,
                  num_cops=100,
                  team_size=10,
                  rationality_of_agents=10,  # 0 is random totally
@@ -266,7 +267,6 @@ class Corruption(Model):
         Collects data from class fields, throws away unnecessary fields or such that are not easily serializable.
         :return: dict with data
         """
-
         log_dict[name] = deepcopy(vars(self))
         log_dict[name].pop('random', None)
         log_dict[name].pop('running', None)
@@ -305,21 +305,9 @@ class Corruption(Model):
         log_dict[name]['cops'] = {}
         for cit in self.schedule.agents:
             log_dict[name]['citizens'][cit.unique_id] = cit.log_data()
-            if 'init' not in name:
-                log_dict[name]['citizens'][cit.unique_id].pop('cost_complain', None)
-                log_dict[name]['citizens'][cit.unique_id].pop('rationality', None)
-                log_dict[name]['citizens'][cit.unique_id].pop('fine_amount', None)
-                log_dict[name]['citizens'][cit.unique_id].pop('penalty_citizen_prosecution', None)
-                log_dict[name]['citizens'][cit.unique_id].pop('discount_factor', None)
 
         for cop in self.schedule_Cop.agents:
             log_dict[name]['cops'][cop.unique_id] = cop.log_data()
-            if 'init' not in name:
-                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
-                log_dict[name]['citizens'][cop.unique_id].pop('rationality', None)
-                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
-                log_dict[name]['citizens'][cop.unique_id].pop('jail_cost', None)
-
         return log_dict
 
     def get_server_data_collector(self):
