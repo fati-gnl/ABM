@@ -77,13 +77,13 @@ class Corruption(Model):
         self.num_indifferent_cops = int(initial_indifferent_corruption_honest_rate[0] * num_cops)
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
         self.num_honest_cops = int(initial_indifferent_corruption_honest_rate[2] * num_cops)
-        self.num_honest_cops += self.num_cops - (self.num_corrupted_cops + self.num_honest_cops + self.num_honest_cops)
+        self.num_honest_cops += self.num_cops - (self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
         # citizen calculations
         self.num_indifferent_citizens = int(initial_indifferent_corruption_honest_rate[0] * num_citizens)
         self.num_corrupted_citizens = int(initial_indifferent_corruption_honest_rate[1] * num_citizens)
         self.num_honest_citizens = int(initial_indifferent_corruption_honest_rate[2] * num_citizens)
         self.num_honest_citizens += self.num_citizens - (
-                self.num_corrupted_citizens + self.num_honest_citizens + self.num_honest_citizens)
+                self.num_corrupted_citizens + self.num_honest_citizens + self.num_indifferent_citizens)
 
         self.team_size = team_size
         assert self.num_cops % self.team_size == 0, \
@@ -293,10 +293,11 @@ class Corruption(Model):
         log_dict[name].pop('citizens_playing', None)
         log_dict[name].pop('cops_playing', None)
         log_dict[name].pop('logger', None)
-        if 'init' not in name:
+        if 'iteration_0' != name:
             # I'm removing those that shouldn't be changed in later steps or it wouldn't change anything if they were
             # rest I left just in case
             log_dict[name].pop('_seed', None)
+            log_dict[name].pop('bribe_amount', None)
             log_dict[name].pop('initial_time_left_in_jail', None)
             log_dict[name].pop('cost_accept_mean_std', None)
             log_dict[name].pop('moral_commitment_mean_std', None)
@@ -312,15 +313,30 @@ class Corruption(Model):
             log_dict[name].pop('number_of_teams', None)
             log_dict[name].pop('corruption_among_teams_spread', None)
             log_dict[name].pop('number_of_corrupted_teams', None)
+            log_dict[name].pop('citizen_complain_memory_discount_factor', None)
+            log_dict[name].pop('prob_of_prosecution', None)
+            log_dict[name].pop('memory_size', None)
+            log_dict[name].pop('cost_complain', None)
+            log_dict[name].pop('penalty_citizen_prosecution', None)
+            log_dict[name].pop('rationality_of_agents', None)
+            log_dict[name].pop('team_size', None)
+            log_dict[name].pop('jail_time', None)
+            log_dict[name].pop('jail_cost_factor', None)
+            log_dict[name].pop('jail_cost', None)
+            log_dict[name].pop('id_team', None)
 
         # add agents stats
         log_dict[name]['citizens'] = {}
         log_dict[name]['cops'] = {}
         for cit in self.schedule.agents:
             log_dict[name]['citizens'][cit.unique_id] = cit.log_data()
+            if 'iteration_0' != name:
+                log_dict[name]['citizens'][cit.unique_id].pop('cost_accept', None)
 
         for cop in self.schedule_Cop.agents:
             log_dict[name]['cops'][cop.unique_id] = cop.log_data()
+            if 'iteration_0' != name:
+                log_dict[name]['cops'][cop.unique_id].pop('moral_commitment', None)
         return log_dict
 
     def get_server_data_collector(self):
