@@ -100,7 +100,7 @@ class Cop(Agent):
 
         self.time_left_in_jail = time_left_in_jail
         self.accepted_bribe_memory_size = accepted_bribe_memory_size
-        self.accepted_bribe_memory = [accepted_bribe_memory_initial]
+        self.accepted_bribe_memory = [accepted_bribe_memory_initial] * accepted_bribe_memory_size
         # for stats
         self.estimated_prob_accept = self.approximate_prob_accept()
 

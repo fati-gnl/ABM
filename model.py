@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import random
 import time
 from collections import defaultdict
@@ -36,14 +37,20 @@ class Corruption(Model):
                  initial_indifferent_corruption_honest_rate=(1.0, 0.0, 0.0),
                  corruption_among_teams_spread=1.0,
                  # rate of teams that should be getting the corrupted cops. 1 - all teams have the same amount(+-1 cop ofc)
-                 logger: bool = True
+                 logger: bool = True,
+                 test_params =None,
                  ):
 
         super().__init__()
 
         now = datetime.now()  # current date and time
         if logger:
-            self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
+            if test_params is not None:
+                setting1 = list(test_params.keys())[0] + "_" + str(list(test_params.values())[0])
+                setting2 = list(test_params.keys())[1] + "_" + str(list(test_params.values())[1])
+                self.experiment_name = setting1 + "-" + setting2
+            else:
+                self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
             print("Experiment name: ", self.experiment_name)
 
         # saving everything, then it can be logged
@@ -239,34 +246,35 @@ class Corruption(Model):
         data_dir = Path("results/")
         data_dir.mkdir(exist_ok=True)
         self.log_path = Path(data_dir, self.experiment_name + '.json')
+        try:
+            os.remove(self.log_path)
+        except:
+            pass
+        name = 'iteration_0'
+        log_dict = self.get_log_data(name)
 
-        with open(self.log_path, 'w') as f:
-            # save all init parameters
-            log_dict = defaultdict(dict)
-            name = 'init_params'
-            log_dict = self.get_log_data(name, log_dict)
-
+        with open(self.log_path, 'a') as f:
             json.dump(log_dict, f)
+            f.write(os.linesep)
 
     def log_data(self, step):
         """
         Logs data in each step. Model params and each agent params. Saves it self.log_path at iteration_step key.
         :param step: current iteration
         """
-
-        with open(self.log_path, 'r') as f:
-            log_dict = json.load(f)
         name = 'iteration_' + str(step)
-        log_dict = self.get_log_data(name, log_dict)
+        log_dict = self.get_log_data(name)
 
-        with open(self.log_path, 'w') as f:
+        with open(self.log_path, 'a') as f:
             json.dump(log_dict, f)
+            f.write(os.linesep)
 
-    def get_log_data(self, name: str, log_dict: dict) -> dict:
+    def get_log_data(self, name: str) -> dict:
         """
         Collects data from class fields, throws away unnecessary fields or such that are not easily serializable.
         :return: dict with data
         """
+        log_dict = defaultdict(dict)
         log_dict[name] = deepcopy(vars(self))
         log_dict[name].pop('random', None)
         log_dict[name].pop('running', None)
