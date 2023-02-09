@@ -38,25 +38,29 @@ class Corruption(Model):
                  corruption_among_teams_spread=1.0,
                  # rate of teams that should be getting the corrupted cops. 1 - all teams have the same amount(+-1 cop ofc)
                  logger: bool = True,
-                 test_params=None, # parameter that are tested in an experiment and should be saved in the file name
+                 test_params=None,  # parameter that are tested in an experiment and should be saved in the file name
                  ):
 
         super().__init__()
 
-
         if logger:
             if test_params is not None:
-                self.experiment_name =""
-                for (param_name, param_value)  in test_params.items():
+
+                self.experiment_name = ""
+                dir_name = ""
+                for (param_name, param_value) in test_params.items():
                     setting = param_name + "_" + str(param_value)
-                    self.experiment_name += setting +"-"
+                    self.experiment_name += setting + "-"
+                    dir_name += "-" + param_name
+                self.data_dir = Path("results" + dir_name)
                 # remove last dash
-                self.experiment_name=self.experiment_name[:-1]
+                self.experiment_name = self.experiment_name[:-1]
             else:
                 # Create a random name for experiment and add date
                 now = datetime.now()  # current date and time
                 self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
-            print("Experiment name: ", self.experiment_name)
+                self.data_dir = Path("results/")
+            print("Saving at: ", str(self.data_dir), "Experiment name: ", self.experiment_name)
 
         # saving everything, then it can be logged
         self.bribe_amount = bribe_amount
@@ -77,7 +81,8 @@ class Corruption(Model):
         self.num_indifferent_cops = int(initial_indifferent_corruption_honest_rate[0] * num_cops)
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
         self.num_honest_cops = int(initial_indifferent_corruption_honest_rate[2] * num_cops)
-        self.num_honest_cops += self.num_cops - (self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
+        self.num_honest_cops += self.num_cops - (
+                    self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
         # citizen calculations
         self.num_indifferent_citizens = int(initial_indifferent_corruption_honest_rate[0] * num_citizens)
         self.num_corrupted_citizens = int(initial_indifferent_corruption_honest_rate[1] * num_citizens)
@@ -248,9 +253,9 @@ class Corruption(Model):
         """
         Logs data in the beginning. Model params and each agent params. Saves it self.log_path at init_params key.
         """
-        data_dir = Path("results/")
-        data_dir.mkdir(exist_ok=True)
-        self.log_path = Path(data_dir, self.experiment_name + '.json')
+
+        self.data_dir.mkdir(exist_ok=True)
+        self.log_path = Path(self.data_dir, self.experiment_name + '.json')
         try:
             os.remove(self.log_path)
         except:
@@ -282,6 +287,7 @@ class Corruption(Model):
         log_dict = defaultdict(dict)
         log_dict[name] = deepcopy(vars(self))
         log_dict[name].pop('random', None)
+        log_dict[name].pop('data_dir', None)
         log_dict[name].pop('running', None)
         log_dict[name].pop('current_id', None)
         log_dict[name].pop('experiment_name', None)
