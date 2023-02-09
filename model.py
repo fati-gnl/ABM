@@ -17,7 +17,7 @@ import names_generator
 
 class Corruption(Model):
     def __init__(self,
-                 num_citizens=100,
+                 num_citizens=2500,
                  num_cops=100,
                  team_size=10,
                  rationality_of_agents=10,  # 0 is random totally
@@ -38,18 +38,23 @@ class Corruption(Model):
                  corruption_among_teams_spread=1.0,
                  # rate of teams that should be getting the corrupted cops. 1 - all teams have the same amount(+-1 cop ofc)
                  logger: bool = True,
-                 test_params =None,
+                 test_params=None, # parameter that are tested in an experiment and should be saved in the file name
                  ):
 
         super().__init__()
 
-        now = datetime.now()  # current date and time
+
         if logger:
             if test_params is not None:
-                setting1 = list(test_params.keys())[0] + "_" + str(list(test_params.values())[0])
-                setting2 = list(test_params.keys())[1] + "_" + str(list(test_params.values())[1])
-                self.experiment_name = setting1 + "-" + setting2
+                self.experiment_name =""
+                for (param_name, param_value)  in test_params.items():
+                    setting = param_name + "_" + str(param_value)
+                    self.experiment_name += setting +"-"
+                # remove last dash
+                self.experiment_name=self.experiment_name[:-1]
             else:
+                # Create a random name for experiment and add date
+                now = datetime.now()  # current date and time
                 self.experiment_name = names_generator.generate_name() + "_" + now.strftime("%d_%m_%H_%M")
             print("Experiment name: ", self.experiment_name)
 
