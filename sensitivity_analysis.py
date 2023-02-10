@@ -101,9 +101,9 @@ def plot_all_vars(df, param):
 
 # Visualise the results of Local Sensitivity Analysis
 
-# for param in ('Bribing', 'NoBribing'):
-#     plot_all_vars(data, param)
-#     plt.show()
+for param in ('Bribing', 'NoBribing'):
+    plot_all_vars(data, param)
+    plt.show()
 
 
 # Simulate the model multiple times using baseline values to get the distribution of outputs.
@@ -192,10 +192,10 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
 
 
 # Run the baseline model by running the function above
-# model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
-#                       memory_size=10, cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
-#                       citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
-#                       model_reporters=model_reporters)
+model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
+                      memory_size=10, cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
+                      citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
+                      model_reporters=model_reporters)
 
 # Global Sensitivity Analysis
 
