@@ -8,6 +8,9 @@ from utils import CitizenActions, sample_action, CopActions
 
 
 class Citizen(Agent):
+    """
+    This class defines the actions of a citizens (accept or reject a bribe, and either complain or stay silent).
+    """
     def __init__(self,
                  unique_id,
                  model,
@@ -23,15 +26,21 @@ class Citizen(Agent):
         # initialize moral costs
         self.cost_accept = np.random.normal(loc=cost_accept_mean_std[0], scale=cost_accept_mean_std[1])
 
-        # Initialize memory, complain_memory ==0.5 means that the beginning state is being indifferent
+        # Initialize memory, complain_memory ==0.5 means that the beginning state is being indifferent.
         self.complain_memory_accumulated_weights = 1
         self.complain_memory = prone_to_complain
         # 0 is easily forgetting, 1 all events important the same
         self.discount_factor = complain_memory_discount_factor
-
+        
+        # Get citizen actions
         self.possible_actions = CitizenActions
 
     def do_action(self, bribe_amount):
+        """
+        Process where a citizen that has been selected by a cop makes a decision (action)
+        """
+        
+        # Calculate the probability that their complain is succesful
         prob_success_complain = self.approximate_prob_successful_complain()
 
         # complain_reward = bribe to make the # of params smaller
@@ -41,14 +50,20 @@ class Citizen(Agent):
         utility_reject_complain = -self.model.fine_amount - self.model.cost_complain
         utility_reject_silent = -self.model.fine_amount
 
+        # Utilities array
         utilities = np.array([utility_accept_complain,
                               utility_accept_silent,
                               utility_reject_complain,
                               utility_reject_silent])
 
+        # Set their action accordingly
         self.action = sample_action(utilities, self.possible_actions, self.model.rationality_of_agents)
 
     def step(self):
+        """
+        A model step.
+        """
+        # At each step, reset the citizens previous actions. This is required, as not all citizens interact during each step.
         self.action = None
 
     def approximate_prob_successful_complain(self):
@@ -89,6 +104,9 @@ class Citizen(Agent):
 
 
 class Cop(Agent):
+    """
+    This class defines the actions of a cop (either to bribe or not).
+    """
     def __init__(self, unique_id,
                  model,
                  time_left_in_jail: int,
@@ -113,8 +131,14 @@ class Cop(Agent):
         self.possible_actions = CopActions
 
     def step(self):
+        """
+        Model step. Reset cop actions, check if cop is in jail, if not interact with a random chosen citizen..
+        """
+   
+        # Reset cop actions
         self.action = None
-        # Check whether this cop can play this round
+        
+        # Check whether this cop can play this round (if it is not in jail)
         play = self.validate_play()
 
         # If cop can play, chose a random citizen from the available citizens and sample an action for the cop
@@ -171,7 +195,8 @@ class Cop(Agent):
         utility_not_bribe = self.moral_commitment
 
         utilities = np.array([utility_bribe, utility_not_bribe])
-
+        
+        # Select the desired action
         self.action = sample_action(utilities, self.possible_actions, self.model.rationality_of_agents)
 
     def approximate_prob_caught(self):
