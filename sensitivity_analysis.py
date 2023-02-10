@@ -1,5 +1,6 @@
 from model import *
 from agents import *
+import random
 from mesa.batchrunner import BatchRunner, FixedBatchRunner
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,10 +10,11 @@ from SALib.analyze import sobol
 import pandas as pd
 plt.style.use('ggplot')
 
+
 # Local Sensitivity Analysis
 
 replicates = 20
-max_steps = 130
+max_steps = 140
 distinct_samples = 15
 
 problem = {
@@ -20,7 +22,7 @@ problem = {
     'names': ['team_size', 'rationality_of_agents', 'jail_time', 'prob_of_prosecution', 'memory_size',
               'cost_complain', 'penalty_citizen_prosecution',
               'jail_cost_factor','citizen_complain_memory_discount_factor', 'bribe_amount'],
-    'bounds': [[5, 25], [0.01, 0.99], [1, replicates], [0.01, 0.99], [1, 16], [0.01, 15], [0, 20], [0.1, 10], [0.01, 0.99], [0, 2]]
+    'bounds': [[5, 25], [0.01, 1.99], [1, replicates], [0.01, 0.99], [1, 16], [0.01, 15], [0, 20], [0.1, 10], [0.01, 0.99], [0, 2]]
 }
 
 integer_vars = ['team_size', 'jail_time', 'memory_size']
@@ -35,13 +37,13 @@ data = {}
 
 for i, var in enumerate(problem['names']):
     # Get the bounds for this variable and get <distinct_samples> samples within this space (uniform)
-    samples = np.linspace(*problem['bounds'][i], num=distinct_samples)
+    samples = np.linspace(*problem['bounds'][i], num=distinct_samples).tolist()
     # Some parameters should have integer values. We change
     # the code to acommodate for this and sample only integers.
     if var in integer_vars[1:]:
-        samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int)
+        samples = np.linspace(*problem['bounds'][i], num=distinct_samples, dtype=int).tolist()
     if var=='team_size':
-        samples = np.arange(10,51,10)
+        samples = [1, 2, 5, 10, 20, 25, 50, 100]
 
     # batch = BatchRunner(Corruption,
     #                     max_steps=max_steps,
@@ -93,7 +95,6 @@ def plot_all_vars(df, param):
 
 # for param in ('Bribing', 'NoBribing'):
 #     plot_all_vars(data, param)
-#     plt.savefig('downloads/LSA.png', dpi = 300)
 #     plt.show()
 
 # RUNNING THE MODEL USING BASELINE VALUES MULTIPLE TIMES TO GET THE DISTRIBUTION OF THE OUTPUTS
@@ -113,7 +114,7 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
                                         'citizen_complain_memory_discount_factor':citizen_complain_memory_discount_factor,
                                         'bribe_amount':bribe_amount,
                                         'logger': False}],
-                                   iterations=200,
+                                   iterations=250,
                                    max_steps=max_steps,
                                    model_reporters=model_reporters)
     batch_fixed.run_all()
@@ -160,19 +161,23 @@ def model_baseline_output(team_size, rationality_of_agents, jail_time, prob_of_p
         plot_dist(data, label)
         qq_plot(data, label)
 #Run the baseline model by running the function above
-model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
-                      memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
-                      citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
-                      model_reporters=model_reporters)
+# model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, prob_of_prosecution=0.7,
+#                       memory_size=10,  cost_complain=3, penalty_citizen_prosecution=5, jail_cost_factor=5,
+#                       citizen_complain_memory_discount_factor=3, bribe_amount=50, max_steps=max_steps,
+#                       model_reporters=model_reporters)
 
-# Global Sensitivity Analysis
-# replicates_global = 15
-# max_steps_global = 130
-# distinct_samples_global = 15
+#Global Sensitivity Analysis
+# replicates_global = 20
+# max_steps_global = 140
+# distinct_samples_global = 20
 #
 # # We get all our samples here
 # param_values = saltelli.sample(problem, distinct_samples_global, calc_second_order = False)
+# items = [1, 2, 5, 10, 20, 25, 50, 100]
+# for values in param_values:
+#     values[0] =random.choice(items)
 #
+# print(param_values)
 # batch_global = BatchRunner(Corruption,
 #                            max_steps=max_steps_global,
 #                            variable_parameters={name:[] for name in problem['names']},
@@ -203,37 +208,37 @@ model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, pro
 #         count += 1
 #
 #         print(f'{count / (len(param_values) * (replicates_global)) * 100:.2f}% done')
-#
+
 # Si_bribe = sobol.analyze(problem, data_global['Bribe'].values, calc_second_order = False, print_to_console=True)
 # Si_nobribe = sobol.analyze(problem, data_global['NoBribe'].values, calc_second_order = False, print_to_console=True)
-#
-# def plot_index(s, params, i, title=''):
-#     """
-#     Creates a plot for Sobol sensitivity analysis that shows the contributions
-#     of each parameter to the global sensitivity.
-#
-#     Args:
-#         s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
-#             the values for a set of parameters
-#         params (list): the parameters taken from s
-#         i (str): string that indicates what order the sensitivity is.
-#         title (str): title for the plot
-#     """
-#
-#
-#     indices = s['S' + i]
-#     errors = s['S' + i + '_conf']
-#     plt.figure()
-#
-#     l = len(indices)
-#
-#     plt.title(title)
-#     plt.ylim([-0.2, len(indices) - 1 + 0.2])
-#     plt.yticks(range(l), params)
-#     plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
-#     plt.axvline(0, c='k')
-#
-#
+
+def plot_index(s, params, i, title=''):
+    """
+    Creates a plot for Sobol sensitivity analysis that shows the contributions
+    of each parameter to the global sensitivity.
+
+    Args:
+        s (dict): dictionary {'S#': dict, 'S#_conf': dict} of dicts that hold
+            the values for a set of parameters
+        params (list): the parameters taken from s
+        i (str): string that indicates what order the sensitivity is.
+        title (str): title for the plot
+    """
+
+
+    indices = s['S' + i]
+    errors = s['S' + i + '_conf']
+    plt.figure()
+
+    l = len(indices)
+
+    plt.title(title)
+    plt.ylim([-0.2, len(indices) - 1 + 0.2])
+    plt.yticks(range(l), params)
+    plt.errorbar(indices, range(l), xerr=errors, linestyle='None', marker='o')
+    plt.axvline(0, c='k')
+
+
 # for Si in (Si_bribe, Si_nobribe):
 #     # First order
 #     plot_index(Si, problem['names'], '1', 'First order sensitivity')
@@ -243,18 +248,18 @@ model_baseline_output(team_size=10, rationality_of_agents=0.75, jail_time=4, pro
 #     plot_index(Si, problem['names'], 'T', 'Total order sensitivity')
 #     plt.show()
 
-# import copy
-# from scipy import stats
-#
-# # Implementing the PAWN Sensitivity Analysis Technique
+import copy
+from scipy import stats
+
+# Implementing the PAWN Sensitivity Analysis Technique
 #
 # # At first, we sample values for every parameter, and run the model.
 # # Nu is the number of random samples of inputs 'X'.
-# Nu = 200
-# # Nc is the number of the random samples of inputs 'X~i'
-# Nc = 180
+Nu = 160
+# Nc is the number of the random samples of inputs 'X~i'
+Nc = 130
 # # M is the number of random samples to be used as conditioning values for 'Xi'.
-# M = 20
+M = 15
 
 
 def PAWN_implementation(Nu, Nc, M, problem):
@@ -265,7 +270,7 @@ def PAWN_implementation(Nu, Nc, M, problem):
     #reset = {}
     bribe_amount = []
     F_y = []
-
+    items_division = [1, 2, 5, 10, 20, 25, 50, 100]
     ks_list = []
     ks_parameters_total = {}
     ks_parameters_lists = {}
@@ -310,17 +315,23 @@ def PAWN_implementation(Nu, Nc, M, problem):
         plt.legend()
         plt.xlabel(xlabel)
         plt.title('Conditional and Unconditional CDFs')
+        plt.show()
 
     # Generate Nu random samples of inputs and evaluate the model.
     # The evaluation of the model results in the unconditional distribution of the model ouputs, F(y)
     for i, var in enumerate(problem['names']):
-        Nu_samples[var] = np.random.uniform(*problem['bounds'][i], Nu)
-        Nc_samples[var] = np.random.uniform(*problem['bounds'][i], Nc)
-        M_samples[var] = np.random.uniform(*problem['bounds'][i], M)
-        if var in integer_vars:
-            Nu_samples[var] = np.random.randint(*problem['bounds'][i], Nu)
-            Nc_samples[var] = np.random.randint(*problem['bounds'][i], Nc)
-            M_samples[var] = np.random.randint(*problem['bounds'][i], M)
+        Nu_samples[var] = np.random.uniform(*problem['bounds'][i], Nu).tolist()
+        Nc_samples[var] = np.random.uniform(*problem['bounds'][i], Nc).tolist()
+        M_samples[var] = np.random.uniform(*problem['bounds'][i], M).tolist()
+        if var in integer_vars[1:]:
+            Nu_samples[var] = np.random.randint(*problem['bounds'][i], Nu).tolist()
+            Nc_samples[var] = np.random.randint(*problem['bounds'][i], Nc).tolist()
+            M_samples[var] = np.random.randint(*problem['bounds'][i], M).tolist()
+        if var == 'team_size':
+            Nu_samples[var] = random.choices(items_division, k=Nu)
+            Nc_samples[var] = random.choices(items_division,k= Nc)
+            M_samples[var] = random.choices(items_division,k= M)
+
 
     # Evaluate the model for all these samples.
     # This results to the Unconditional CDF, F(y) - everything is sampled
@@ -398,9 +409,22 @@ def PAWN_implementation(Nu, Nc, M, problem):
         plt.ylabel('KS Statistic')
         plt.legend()
         plt.ylim(0, 1)
+        plt.show()
         # Plot the conditional and unconditional CDFs
         plt.figure()
         plot_ecdf(testi[f'Variable {var}'], F_y, var)
+    plt.figure()
+    a = ks_parameters_total['T_i of variable team_size']
+    b = ks_parameters_total['T_i of variable rationality_of_agents']
+    c = ks_parameters_total['T_i of variable jail_time']
+    d = ks_parameters_total['T_i of variable prob_of_prosecution']
+    e = ks_parameters_total['T_i of variable memory_size']
+    f = ks_parameters_total['T_i of variable cost_complain']
+    g = ks_parameters_total['T_i of variable penalty_citizen_prosecution']
+    h = ks_parameters_total['T_i of variable jail_cost_factor']
+    i = ks_parameters_total['T_i of variable citizen_complain_memory_discount_factor']
+    j = ks_parameters_total['T_i of variable bribe_amount']
+    plt.bar(problem['names'], [a, b, c, d, e, f, g, h, i, j])
+    plt.show()
 
-
-# PAWN_implementation(Nu, Nc, M, problem)
+PAWN_implementation(Nu, Nc, M, problem)
