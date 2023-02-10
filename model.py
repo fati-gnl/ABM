@@ -28,7 +28,7 @@ class Corruption(Model):
                  cost_complain=0.4,
                  penalty_citizen_prosecution=0.,
                  jail_cost_factor=0.5,
-                 # jail cost and jail_time should somehow relate to each other I think, but don't know how exactly
+                 # jail cost and jail_time should relate to each other but not 1:1
                  cost_accept_mean_std=(0.2, 0.05),
                  citizen_complain_memory_discount_factor=0.5,
                  bribe_amount=0.5,
@@ -82,7 +82,7 @@ class Corruption(Model):
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
         self.num_honest_cops = int(initial_indifferent_corruption_honest_rate[2] * num_cops)
         self.num_honest_cops += self.num_cops - (
-                    self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
+                self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
         # citizen calculations
         self.num_indifferent_citizens = int(initial_indifferent_corruption_honest_rate[0] * num_citizens)
         self.num_corrupted_citizens = int(initial_indifferent_corruption_honest_rate[1] * num_citizens)
@@ -197,7 +197,7 @@ class Corruption(Model):
         They're allocated randomly. You can set indifferent rate or the honest rate to 0 and then be sure.
         """
 
-        # depending on this check rate of corruption in the team, maybe if none do it totally randomly?
+        # depending on this check rate of corruption in the team
         corrupt_cop_per_team = int(self.num_corrupted_cops / self.number_of_corrupted_teams)
         #  some teams might have to take the additional cops
         surplas_modulo = self.num_corrupted_cops % self.number_of_corrupted_teams
@@ -260,8 +260,8 @@ class Corruption(Model):
             os.remove(self.log_path)
         except:
             pass
-        name = 'iteration_0'
-        log_dict = self.get_log_data(name)
+
+        log_dict = {'iteration_0': self.get_log_data(step=0)}
 
         with open(self.log_path, 'a') as f:
             json.dump(log_dict, f)
@@ -272,77 +272,44 @@ class Corruption(Model):
         Logs data in each step. Model params and each agent params. Saves it self.log_path at iteration_step key.
         :param step: current iteration
         """
-        name = 'iteration_' + str(step)
-        log_dict = self.get_log_data(name)
+        log_dict = {('iteration_' + str(step)): self.get_log_data(step)}
 
         with open(self.log_path, 'a') as f:
             json.dump(log_dict, f)
             f.write(os.linesep)
 
-    def get_log_data(self, name: str) -> dict:
+    def get_log_data(self, step: int) -> dict:
         """
         Collects data from class fields, throws away unnecessary fields or such that are not easily serializable.
         :return: dict with data
         """
-        log_dict = defaultdict(dict)
-        log_dict[name] = deepcopy(vars(self))
-        log_dict[name].pop('random', None)
-        log_dict[name].pop('data_dir', None)
-        log_dict[name].pop('running', None)
-        log_dict[name].pop('current_id', None)
-        log_dict[name].pop('experiment_name', None)
-        log_dict[name].pop('log_path', None)
-        log_dict[name].pop('schedule', None)
-        log_dict[name].pop('schedule_Cop', None)
-        log_dict[name].pop('datacollector', None)
-        log_dict[name].pop('lookup_corrupt_cops', None)
-        log_dict[name].pop('citizens_playing', None)
-        log_dict[name].pop('cops_playing', None)
-        log_dict[name].pop('logger', None)
-        if 'iteration_0' != name:
-            # I'm removing those that shouldn't be changed in later steps or it wouldn't change anything if they were
-            # rest I left just in case
-            log_dict[name].pop('_seed', None)
-            log_dict[name].pop('bribe_amount', None)
-            log_dict[name].pop('initial_time_left_in_jail', None)
-            log_dict[name].pop('cost_accept_mean_std', None)
-            log_dict[name].pop('moral_commitment_mean_std', None)
-            log_dict[name].pop('fine_amount', None)
-            log_dict[name].pop('num_citizens', None)
-            log_dict[name].pop('num_cops', None)
-            log_dict[name].pop('num_indifferent_cops', None)
-            log_dict[name].pop('num_corrupted_cops', None)
-            log_dict[name].pop('num_honest_cops', None)
-            log_dict[name].pop('num_indifferent_citizens', None)
-            log_dict[name].pop('num_corrupted_citizens', None)
-            log_dict[name].pop('num_honest_citizens', None)
-            log_dict[name].pop('number_of_teams', None)
-            log_dict[name].pop('corruption_among_teams_spread', None)
-            log_dict[name].pop('number_of_corrupted_teams', None)
-            log_dict[name].pop('citizen_complain_memory_discount_factor', None)
-            log_dict[name].pop('prob_of_prosecution', None)
-            log_dict[name].pop('memory_size', None)
-            log_dict[name].pop('cost_complain', None)
-            log_dict[name].pop('penalty_citizen_prosecution', None)
-            log_dict[name].pop('rationality_of_agents', None)
-            log_dict[name].pop('team_size', None)
-            log_dict[name].pop('jail_time', None)
-            log_dict[name].pop('jail_cost_factor', None)
-            log_dict[name].pop('jail_cost', None)
-            log_dict[name].pop('id_team', None)
+        log_dict = {}
+        if step == 0:
+            log_dict['bribe_amount'] = self.bribe_amount
+            log_dict['cost_accept_mean_std'] = self.cost_accept_mean_std
+            log_dict['moral_commitment_mean_std'] = self.moral_commitment_mean_std
+            log_dict['prob_of_prosecution'] = self.prob_of_prosecution
+            log_dict['citizen_complain_memory_discount_factor'] = self.citizen_complain_memory_discount_factor
+            log_dict['memory_size'] = self.memory_size
+            log_dict['id_team'] = self.id_team
+            log_dict['cost_complain'] = self.cost_complain
+            log_dict['penalty_citizen_prosecution'] = self.penalty_citizen_prosecution
+            log_dict['rationality_of_agents'] = self.rationality_of_agents
+            log_dict['num_citizens'] = self.num_citizens
+            log_dict['num_cops'] = self.num_cops
+            log_dict['jail_time'] = self.jail_time
+            log_dict['jail_cost'] = self.jail_cost
+            log_dict['team_size'] = self.team_size
+            log_dict['corruption_among_teams_spread'] = self.corruption_among_teams_spread
+            log_dict['number_of_corrupted_teams'] = self.number_of_corrupted_teams
 
         # add agents stats
-        log_dict[name]['citizens'] = {}
-        log_dict[name]['cops'] = {}
-        for cit in self.schedule.agents:
-            log_dict[name]['citizens'][cit.unique_id] = cit.log_data()
-            if 'iteration_0' != name:
-                log_dict[name]['citizens'][cit.unique_id].pop('cost_accept', None)
-
+        log_dict['citizens'] = {}
+        log_dict['cops'] = {}
+        for cit in [citizen for citizen in self.schedule.agents if citizen.action is not None]:
+            log_dict['citizens'][cit.unique_id] = cit.log_data(step)
         for cop in self.schedule_Cop.agents:
-            log_dict[name]['cops'][cop.unique_id] = cop.log_data()
-            if 'iteration_0' != name:
-                log_dict[name]['cops'][cop.unique_id].pop('moral_commitment', None)
+            log_dict['cops'][cop.unique_id] = cop.log_data(step)
         return log_dict
 
     def get_server_data_collector(self):

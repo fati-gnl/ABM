@@ -73,14 +73,18 @@ class Citizen(Agent):
         assert self.complain_memory <= 1.0 or self.complain_memory >= 0.0, (
                 "Complain memory is out of proper range! " + str(self.complain_memory))
 
-    def log_data(self) -> dict:
+    def log_data(self, step: int) -> dict:
         """
         Creates a dictionary with all params of this agent
         :return: dict with results
         """
 
-        data = {'action': self.action if self.action is None else self.action.name, 'cost_accept': self.cost_accept,
-                'complain_memory': self.complain_memory}
+        data = {
+            'action': self.action if self.action is None else self.action.name,
+            'complain_memory': self.complain_memory
+        }
+        if step == 0:
+            data['cost_accept'] = self.cost_accept
         return data.copy()
 
 
@@ -198,7 +202,7 @@ class Cop(Agent):
         self.estimated_prob_accept = sum(self.accepted_bribe_memory) / self.accepted_bribe_memory_size
         return self.estimated_prob_accept
 
-    def log_data(self) -> dict:
+    def log_data(self, step: int) -> dict:
         """
         Creates a dictionary with all params of this agent
         :return: dict with results
@@ -206,7 +210,9 @@ class Cop(Agent):
 
         data = {'action': self.action if self.action is None else self.action.name,
                 'time_left_in_jail': self.time_left_in_jail,
-                # 'accepted_bribe_memory': self.accepted_bribe_memory.copy(),
-                'estimated_prob_accept': self.estimated_prob_accept, 'moral_commitment': self.moral_commitment,
-                'approximated_prob_caught': self.approximate_prob_caught()}
+                'estimated_prob_accept': self.estimated_prob_accept,
+                'approximated_prob_caught': self.approximate_prob_caught()
+                }
+        if step == 0:
+            data['moral_commitment'] = self.moral_commitment
         return data
