@@ -16,6 +16,10 @@ import names_generator
 
 
 class Corruption(Model):
+    """
+    Corruption Agent Based Model developed with the purpose of exploring the group dynamics of police teams 
+    and the impact of different intervention strategies on the spread of corruption within these teams.
+    """
     def __init__(self,
                  num_citizens=2500,
                  num_cops=100,
@@ -40,12 +44,16 @@ class Corruption(Model):
                  logger: bool = True,
                  test_params=None,  # parameter that are tested in an experiment and should be saved in the file name
                  ):
-
+        
+        # Initialise parameters
         super().__init__()
 
+        # Added a logger to save the obtained results data in a JSON file.
         if logger:
             if test_params is not None:
-
+                
+                # Select a experiment name, that will be generated using the names generator library.
+                # That way each experiment conducted will be saved on a specific file with a unique name. 
                 self.experiment_name = ""
                 dir_name = ""
                 for (param_name, param_value) in test_params.items():
@@ -62,7 +70,7 @@ class Corruption(Model):
                 self.data_dir = Path("results/")
             print("Saving at: ", str(self.data_dir), "Experiment name: ", self.experiment_name)
 
-        # saving everything, then it can be logged
+        # saving everything (the needed parameters), then they can be logged
         self.bribe_amount = bribe_amount
         self.initial_time_left_in_jail = initial_time_left_in_jail
         self.cost_accept_mean_std = cost_accept_mean_std
@@ -76,13 +84,17 @@ class Corruption(Model):
         self.rationality_of_agents = rationality_of_agents
         self.num_citizens = num_citizens
         self.num_cops = num_cops
+        
+        # Test -> Confirm that there are more citizens than cops, otherwise warn.
         assert self.num_cops <= self.num_citizens, "There should be more citizens than cops!"
+        
         # cops calculations
         self.num_indifferent_cops = int(initial_indifferent_corruption_honest_rate[0] * num_cops)
         self.num_corrupted_cops = int(initial_indifferent_corruption_honest_rate[1] * num_cops)
         self.num_honest_cops = int(initial_indifferent_corruption_honest_rate[2] * num_cops)
         self.num_honest_cops += self.num_cops - (
                 self.num_corrupted_cops + self.num_honest_cops + self.num_indifferent_cops)
+       
         # citizen calculations
         self.num_indifferent_citizens = int(initial_indifferent_corruption_honest_rate[0] * num_citizens)
         self.num_corrupted_citizens = int(initial_indifferent_corruption_honest_rate[1] * num_citizens)
@@ -90,17 +102,22 @@ class Corruption(Model):
         self.num_honest_citizens += self.num_citizens - (
                 self.num_corrupted_citizens + self.num_honest_citizens + self.num_indifferent_citizens)
 
+        # Initialise team size
         self.team_size = team_size
+        
+        # Test -> The number of cops should be divisable by team size. Otherwise, warn.
         assert self.num_cops % self.team_size == 0, \
             f"You need to set num of cops to be dividable by team size. Each team should have the same size! Your num_cops: {self.num_cops}, teamsize: {self.team_size}"
         self.number_of_teams = math.ceil(self.num_cops / self.team_size)
 
-        # how many iterations cop is inactive
+        # Initialise jail time. Determine how many iterations cop is inactive
         self.jail_time = jail_time
+        
         # actual cost that cop takes into consideration in the utility function
         self.jail_cost_factor = jail_cost_factor
         self.jail_cost = self.jail_cost_factor * jail_time
 
+        # Test -> Distributions should add up to one, otherwise, warn
         assert sum(
             [rate for rate in initial_indifferent_corruption_honest_rate]) == 1.0, "Distribution should sum up to 1."
 
@@ -118,25 +135,40 @@ class Corruption(Model):
 
         # Divide the cops over a network of teams
         self.create_network()
-
+        
+        # Initialise logger. If activated all data should be saved. 
         self.logger = logger
         if self.logger:
             # Should be after all initializations as it saves all params!
             self.init_logger()
 
     def step(self):
+        """
+        Each step corresponds to one day of our model. During each steps all actions of the citizens and cops during that day will be performed
+        """
+       
+        # Determine the number of cops playing; the ones that are not in jail.
         self.cops_playing = [cop for cop in self.schedule_Cop.agents if cop.time_left_in_jail == 0]
+        
+        # Determine the citizens that will be playing. A random drawn with the size of cops playing
         self.citizens_playing = random.sample(self.schedule.agents, len(self.cops_playing))
 
+        # Start the cop and citizen schedule, that will go through each agent ones
         self.schedule.step()
         self.schedule_Cop.step()
 
+        # Collect all the data and update the network, which reduces the jail time of agents.
         self.datacollector.collect(self)
         self.update_network()
+        
+        # If logger activated, save the data.
         if self.logger:
             self.log_data(self.schedule.steps)
 
     def init_agents(self):
+        """
+        Add all agents to a scheduler and initialise them according to the type of agent. 
+        """
         # Add agents to schedulers
         for i in range(self.num_citizens):
 
@@ -155,6 +187,7 @@ class Corruption(Model):
                               prone_to_complain=citizen_initial_prone_to_complain,
                               complain_memory_discount_factor=self.citizen_complain_memory_discount_factor)
             self.schedule.add(citizen)
+        
         # needed for assigning to teams
         self.lookup_corrupt_cops = defaultdict(list)
         for i in range(self.num_cops):
@@ -179,7 +212,7 @@ class Corruption(Model):
 
     def get_citizen(self):
         """
-        Get the citizen chosen citizens and give them to the cop.
+        Assign an unchosen citizen (from the list of available citizens that play that round) to a cop
         :return: citizen
         """
         citizen = random.sample(self.citizens_playing, 1)[0]
@@ -233,6 +266,9 @@ class Corruption(Model):
                 self.id_team[cop_id] = team_name
 
     def num_active_citizens(self):
+        """
+        Returns the sum of active citizens (the ones who have an action) because a cop has offered them a bribe.
+        """
         return sum([1 for cit in self.schedule.agents if
                     cit.action is not None])
 
@@ -313,6 +349,9 @@ class Corruption(Model):
         return log_dict
 
     def get_server_data_collector(self):
+        """
+        Get the server data for the data collector.
+        """
         return DataCollector(
             {"Prison Count": lambda m: sum([1 for cop in self.schedule_Cop.agents if
                                             cop.time_left_in_jail > 0]) / self.schedule_Cop.get_agent_count(),
