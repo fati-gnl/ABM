@@ -21,8 +21,12 @@ to exactly one team. It is used only in estimating probability of prosecution.
 #### How to run
 
 Just run `server.py` file. It will open mesa board in your browser. You will see charts there of the simulation.
+
 Regarding the Sensitivity Analysis, run the `sensitivity_analysis.py` file. This will produce the results and plots 
 of the sensitivity analysis techniques used. 
+
+In order to see the results of the conducted experiments, run the `run_experiments.py` file. You will see plots 
+with the results of the experiments.
 
 #### Files
 
@@ -31,6 +35,9 @@ of the sensitivity analysis techniques used.
 - `ABM/server.py`:  Sets up the interactive visualization server
 - `ABM/utils.py`: Additional helping functions and classes
 - `ABM/sensitivity_analysis.py`: Performs the sensitivity analysis techniques used in the model.
+- `ABM/run_experiments.py`: Sets up the experiments to be conducted and visualises the results.
+
+
 
 #### Logger
 
